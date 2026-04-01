@@ -5,6 +5,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Target, Users, UserPlus, MessageSquare, Edit2, Trash2, Plus, MoreVertical } from 'lucide-react'
 import { useState, useEffect, useRef } from 'react'
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
 interface Session {
   id: string
   name: string
@@ -22,26 +24,34 @@ export default function Sidebar() {
   const currentSessionId = searchParams.get('session')
   const menuRef = useRef<HTMLDivElement>(null)
 
+  // Load sessions on mount only, not polling
   useEffect(() => {
     loadSessions()
   }, [])
 
+  // Reload sessions when returning to this page
+  useEffect(() => {
+    const handleFocus = () => loadSessions()
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [])
+
   const loadSessions = async () => {
     try {
-      // Try to load from backend first
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/sessions`)
+      // Load from MongoDB backend
+      const response = await fetch(`${API_BASE}/sessions`)
       if (response.ok) {
         const data = await response.json()
         if (data.success && data.sessions) {
           // Convert backend sessions to frontend format
           const backendSessions: Session[] = data.sessions.map((s: any) => ({
             id: s.session_id || s.id,
-            name: s.project_name || s.name || `Session ${(s.session_id || s.id).slice(-8)}`,
-            created_at: s.created_at
+            name: s.project_name || s.weekly_goal?.slice(0, 30) || s.name || `Session ${(s.session_id || s.id).slice(-8)}`,
+            created_at: s.created_at || new Date().toISOString()
           }))
-          
+
           setSessions(backendSessions)
-          // Also save to localStorage as backup
+          // Also cache in localStorage as backup
           localStorage.setItem('sessions', JSON.stringify(backendSessions))
           return
         }
@@ -49,8 +59,8 @@ export default function Sidebar() {
     } catch (error) {
       console.error('Error loading sessions from backend:', error)
     }
-    
-    // Fallback to localStorage
+
+    // Fallback to localStorage cache
     const stored = localStorage.getItem('sessions')
     if (stored) {
       try {
@@ -63,15 +73,11 @@ export default function Sidebar() {
   }
 
   const createNewSession = () => {
-    const newSession: Session = {
-      id: `manager_${Math.random().toString(36).substr(2, 9)}`,
-      name: `Session ${sessions.length + 1}`,
-      created_at: new Date().toISOString()
-    }
-    const updated = [...sessions, newSession]
-    setSessions(updated)
-    localStorage.setItem('sessions', JSON.stringify(updated))
-    router.push(`/?session=${newSession.id}`)
+    const newSessionId = `manager_${Math.random().toString(36).substr(2, 9)}`
+    // Navigate to new session – the backend session gets created on the first chat message
+    router.push(`/?session=${newSessionId}`)
+    // Refresh sessions list from backend after a short delay
+    setTimeout(loadSessions, 300)
   }
 
   const renameSession = (id: string) => {
@@ -85,16 +91,21 @@ export default function Sidebar() {
     setEditName('')
   }
 
-  const deleteSession = (id: string) => {
+  const deleteSession = async (id: string) => {
     if (confirm('Are you sure you want to delete this session?')) {
-      // Remove from sessions list
-      const updated = sessions.filter(s => s.id !== id)
-      setSessions(updated)
-      localStorage.setItem('sessions', JSON.stringify(updated))
-      
-      // Remove session data
+      // Remove session data from localStorage
       localStorage.removeItem(`session_${id}`)
-      
+
+      // Delete from backend (MongoDB)
+      try {
+        await fetch(`${API_BASE}/sessions/${id}`, { method: 'DELETE' })
+      } catch (e) {
+        console.error('Failed to delete session from backend:', e)
+      }
+
+      // Refresh sessions from backend
+      await loadSessions()
+
       // If deleting current session, redirect to home
       if (currentSessionId === id) {
         router.push('/')

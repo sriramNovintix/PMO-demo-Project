@@ -20,6 +20,7 @@ export default function Home() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sessionLoading, setSessionLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string>('')
   const [pendingApproval, setPendingApproval] = useState<any>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
@@ -27,17 +28,15 @@ export default function Home() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Initialize session ID only once
+  // Initialize session ID from URL or localStorage
   useEffect(() => {
     if (urlSessionId) {
       setSessionId(urlSessionId)
     } else {
-      // Check if there's a default session in localStorage
       const defaultSession = localStorage.getItem('default_session_id')
       if (defaultSession) {
         setSessionId(defaultSession)
       } else {
-        // Create new session only if none exists
         const newSessionId = `manager_${Math.random().toString(36).substr(2, 9)}`
         setSessionId(newSessionId)
         localStorage.setItem('default_session_id', newSessionId)
@@ -45,29 +44,25 @@ export default function Home() {
     }
   }, [urlSessionId])
 
-  // Don't register session in localStorage anymore - use MongoDB only
+  // Load conversation from MongoDB whenever session changes
   useEffect(() => {
     if (!sessionId) return
-    
-    // Session will be created in MongoDB when first message is sent
-    // No need to store in localStorage
-  }, [sessionId])
 
-  useEffect(() => {
-    if (!sessionId) return
-    
-    // Load session from backend (MongoDB)
+    // Immediately clear stale messages from previous session
+    setMessages([])
+    setPendingApproval(null)
+    setSessionLoading(true)
+
     const loadSessionFromBackend = async () => {
       try {
         const response = await axios.get(`${API_URL}/session/${sessionId}`)
         if (response.data.success && response.data.session) {
           const sessionData = response.data.session
-          
-          // Build messages from conversation history
+
           const loadedMessages: Message[] = []
-          
-          // Add conversation history if exists
+
           if (sessionData.conversation_history && sessionData.conversation_history.length > 0) {
+            // Restore conversation history from MongoDB
             sessionData.conversation_history.forEach((msg: any) => {
               loadedMessages.push({
                 role: msg.role,
@@ -77,67 +72,56 @@ export default function Home() {
               })
             })
           } else {
-            // Welcome message for new session
+            // New session — show welcome message
             loadedMessages.push({
               role: 'agent',
               content: 'Hello! I\'m your task orchestrator. Tell me what you\'d like to do:\n\n• Set weekly goals\n• Upload candidate resumes\n• Search candidates by skills\n• Assign tasks to team',
               timestamp: new Date()
             })
           }
-          
+
           setMessages(loadedMessages)
-          
-          // Also save to localStorage as backup
+          // Cache in localStorage
           localStorage.setItem(`session_${sessionId}`, JSON.stringify(loadedMessages))
         }
       } catch (error: any) {
-        // If session not found in backend, try localStorage
         if (error.response?.status === 404) {
+          // Session doesn't exist in MongoDB yet (new session, no message sent)
+          // Try localStorage cache
           const stored = localStorage.getItem(`session_${sessionId}`)
           if (stored) {
-            const parsedMessages = JSON.parse(stored)
-            setMessages(parsedMessages.map((msg: any) => ({
-              ...msg,
-              timestamp: new Date(msg.timestamp)
-            })))
+            try {
+              const parsedMessages = JSON.parse(stored)
+              setMessages(parsedMessages.map((msg: any) => ({
+                ...msg,
+                timestamp: new Date(msg.timestamp)
+              })))
+            } catch {
+              setMessages([{ role: 'agent', content: 'Hello! I\'m your task orchestrator. Tell me what you\'d like to do:\n\n• Set weekly goals\n• Upload candidate resumes\n• Search candidates by skills\n• Assign tasks to team', timestamp: new Date() }])
+            }
           } else {
-            // Welcome message for new session
-            setMessages([{
-              role: 'agent',
-              content: 'Hello! I\'m your task orchestrator. Tell me what you\'d like to do:\n\n• Set weekly goals\n• Upload candidate resumes\n• Search candidates by skills\n• Assign tasks to team',
-              timestamp: new Date()
-            }])
+            // Brand new session
+            setMessages([{ role: 'agent', content: 'Hello! I\'m your task orchestrator. Tell me what you\'d like to do:\n\n• Set weekly goals\n• Upload candidate resumes\n• Search candidates by skills\n• Assign tasks to team', timestamp: new Date() }])
           }
         } else {
           console.error('Error loading session:', error)
-          // Fallback to localStorage
-          const stored = localStorage.getItem(`session_${sessionId}`)
-          if (stored) {
-            const parsedMessages = JSON.parse(stored)
-            setMessages(parsedMessages.map((msg: any) => ({
-              ...msg,
-              timestamp: new Date(msg.timestamp)
-            })))
-          } else {
-            setMessages([{
-              role: 'agent',
-              content: 'Hello! I\'m your task orchestrator. Tell me what you\'d like to do:\n\n• Set weekly goals\n• Upload candidate resumes\n• Search candidates by skills\n• Assign tasks to team',
-              timestamp: new Date()
-            }])
-          }
+          setMessages([{ role: 'agent', content: 'Hello! I\'m your task orchestrator. Tell me what you\'d like to do:\n\n• Set weekly goals\n• Upload candidate resumes\n• Search candidates by skills\n• Assign tasks to team', timestamp: new Date() }])
         }
+      } finally {
+        setSessionLoading(false)
       }
     }
-    
+
     loadSessionFromBackend()
   }, [sessionId])
 
+  // Save messages to localStorage — only depends on messages (not sessionId)
+  // so switching sessions doesn't accidentally overwrite the new session's cache
   useEffect(() => {
-    // Save messages to localStorage
-    if (messages.length > 0) {
+    if (messages.length > 0 && sessionId && !sessionLoading) {
       localStorage.setItem(`session_${sessionId}`, JSON.stringify(messages))
     }
-  }, [messages, sessionId])
+  }, [messages])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -336,6 +320,18 @@ export default function Home() {
 
   // Check if user has sent any messages (excluding the initial agent welcome message)
   const userHasSentMessage = messages.some(msg => msg.role === 'user')
+
+  // Show spinner while fetching session from MongoDB
+  if (sessionLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="animate-spin text-blue-500 mx-auto mb-4" size={48} />
+          <p className="text-gray-500 text-sm">Loading conversation...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
