@@ -38,9 +38,11 @@ class AgentState(TypedDict):
     employee_skills: Dict[str, List[str]]
     
     # Task assignment
+    skill_matches: List[Dict[str, Any]]
     assignment_plan: Optional[Dict[str, Any]]
     pending_approval: bool
     approved: bool
+    awaiting_message: bool
     
     # Agent decisions
     next_agent: Optional[str]
@@ -72,9 +74,11 @@ def create_initial_state(session_id: str, user_message: str) -> AgentState:
         generated_tasks=[],
         employees=[],
         employee_skills={},
+        skill_matches=[],
         assignment_plan=None,
         pending_approval=False,
         approved=False,
+        awaiting_message=False,
         next_agent=None,
         completed_agents=[],
         agent_messages=[],

@@ -24,6 +24,11 @@ class ControllerAgent:
         has_project = bool(state.get("project_name"))
         user_msg_lower = state.get("user_message", "").lower()
         
+        # Check if employees exist in database
+        from database import db
+        employees_in_db = db.get_all_employees()
+        has_employees = len(employees_in_db) > 0
+        
         return f"""You are a Controller Agent in a task orchestration system.
 Your role is to analyze user messages and decide the next action dynamically.
 
@@ -51,28 +56,30 @@ Available agents:
 - goal_understanding: Extract project name and weekly goal from user message
 - task_generation: Generate tasks from weekly goal (requires weekly_goal)
 - skill_matching: Match tasks to employee skills (requires tasks + employees)
-- task_allocation: Create allocation plan (requires skill matches)
-- notification: Send Slack/Trello notifications
+- task_allocation: Create allocation plan and execute assignments (requires skill matches)
 - status: Show status updates
 - message: Send Slack messages
 - none: Finalize and end (use this to show tasks or complete workflow)
 
 DECISION LOGIC (follow strictly):
 1. User asks for status → run "status" agent
-2. User wants to send message → run "message" agent
+2. User wants to send message/update/task list to Slack → run "message" agent (will fetch from MongoDB)
 3. User asks to "show tasks" or "display tasks" and tasks exist → run "none" to finalize
 4. User provides goal but no weekly_goal in state → run "goal_understanding"
 5. weekly_goal EXISTS and tasks NOT generated → run "task_generation" IMMEDIATELY
-6. User mentions employee name and tasks exist → run "skill_matching"
-7. Tasks exist and employees exist → run "skill_matching"
-8. Skill matches exist → run "task_allocation"
-9. Allocation exists → run "human_approval"
+6. User mentions employee name (like "use sriram", "assign to john") BUT no employees in DB → run "none" with message asking to add employee via web interface
+7. User asks to "assign tasks" or "assign to [name]" AND employees exist → run "skill_matching" (will auto-fetch employees from DB)
+8. Tasks exist and employees exist → run "skill_matching"
+9. Skill matches exist → run "task_allocation" (will execute assignments automatically)
 10. Otherwise → run "none" to finalize
+
+IMPORTANT: When user says "send task list" or "send to slack", ALWAYS run "message" agent.
+The message agent will fetch ALL tasks from MongoDB (not session-specific) and send to Slack.
 
 Respond in JSON format:
 {{
     "workflow_type": "CREATE_PROJECT|UPDATE_GOAL|ADD_EMPLOYEE|ASSIGN_TASKS|MODIFY_ASSIGNMENT|STATUS_UPDATE|SEND_MESSAGE|SEND_STATUS",
-    "next_agent": "goal_understanding|task_generation|skill_matching|task_allocation|notification|status|message|none",
+    "next_agent": "goal_understanding|task_generation|skill_matching|task_allocation|status|message|none",
     "reasoning": "Why this decision",
     "missing_info": [],
     "response_to_user": "Message to show user (empty if continuing workflow)"
@@ -84,16 +91,18 @@ Current State:
 - Project Name: {state.get("project_name") or "None"}
 - Weekly Goal: {"EXISTS" if has_goal else "MISSING"}
 - Generated Tasks: {len(state.get("generated_tasks", []))} tasks
-- Employees: {len(state.get("employees", []))} employees
+- Employees in Database: {len(employees_in_db)} employees
 - Completed Agents: {", ".join(completed) if completed else "None"}
 
 Analysis:
 - Has Goal: {has_goal}
 - Has Tasks: {has_tasks}
 - Has Project: {has_project}
+- Has Employees: {has_employees}
 - Goal Understanding Done: {"goal_understanding" in completed}
 - Task Generation Done: {"task_generation" in completed}
 - User asking to show tasks: {"show" in user_msg_lower and "task" in user_msg_lower}
+- User mentions employee: {"sriram" in user_msg_lower or "assign" in user_msg_lower or "use" in user_msg_lower}
 
 What should happen next?"""
     

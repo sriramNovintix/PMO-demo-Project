@@ -8,9 +8,54 @@ from database import db
 
 class StatusAgent:
     """
-    Status Agent
+    Status Agent - Autonomous
     Retrieves and formats status information
     """
+    
+    def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute status retrieval - autonomous method
+        Gets status from database and formats response
+        
+        Args:
+            state: Current state (may contain employee_name for filtering)
+        
+        Returns:
+            Result with status information
+        """
+        try:
+            employee_name = state.get("employee_name")
+            
+            if employee_name:
+                # Get detailed status for specific employee
+                result = self.get_detailed_status(employee_name)
+            else:
+                # Get general status for all employees
+                result = self.get_status_update()
+            
+            if result["success"]:
+                return {
+                    "success": True,
+                    "status_message": result["status_message"],
+                    "employee_status": result.get("employee_status", []),
+                    "state_updates": {},
+                    "message": result["status_message"]
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": result.get("error"),
+                    "state_updates": {},
+                    "message": result["status_message"]
+                }
+        
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "state_updates": {},
+                "message": f"Error retrieving status: {str(e)}"
+            }
     
     def get_status_update(self) -> Dict[str, Any]:
         """

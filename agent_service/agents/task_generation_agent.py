@@ -9,7 +9,7 @@ from config import get_llm, invoke_with_prompt
 
 class TaskGenerationAgent:
     """
-    Task Generation Agent
+    Task Generation Agent - Autonomous
     Breaks down weekly goals into specific, actionable tasks
     """
     
@@ -49,6 +49,83 @@ Weekly Goal: {weekly_goal}
 
 Generate actionable tasks.""")
         ])
+    
+    def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute task generation - autonomous method
+        Generates tasks and saves to database
+        
+        Args:
+            state: Current state with project_name and weekly_goal
+        
+        Returns:
+            Result with generated tasks and state updates
+        """
+        try:
+            # Check if we have required information
+            weekly_goal = state.get("weekly_goal")
+            if not weekly_goal:
+                return {
+                    "success": False,
+                    "error": "Missing weekly goal",
+                    "tasks": [],
+                    "state_updates": {},
+                    "message": "Please provide a weekly goal first"
+                }
+            
+            # Use project name or default
+            project_name = state.get("project_name") or "Unnamed Project"
+            
+            # Generate tasks
+            result = self.generate_tasks(project_name, weekly_goal)
+            
+            if not result["success"]:
+                return {
+                    "success": False,
+                    "error": result.get("error"),
+                    "tasks": [],
+                    "state_updates": {},
+                    "message": f"Failed to generate tasks: {result.get('error')}"
+                }
+            
+            # Save tasks to database
+            from database import db
+            session_id = state.get("session_id")
+            tasks = result["tasks"]
+            
+            for task in tasks:
+                task_data = {
+                    "title": task.get("title", "Untitled Task"),
+                    "description": task.get("description", ""),
+                    "assigned_to": None,
+                    "assigned_to_email": None,
+                    "estimated_hours": task.get("estimated_hours", 0),
+                    "session_id": session_id,
+                    "project_id": project_name
+                }
+                
+                db_result = db.create_task(task_data)
+                if db_result["success"]:
+                    task["task_id"] = db_result["task_id"]
+            
+            return {
+                "success": True,
+                "tasks": tasks,
+                "total_estimated_hours": result["total_estimated_hours"],
+                "state_updates": {
+                    "generated_tasks": tasks
+                },
+                "message": f"Generated {len(tasks)} tasks ({result['total_estimated_hours']}h total)"
+            }
+        
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "tasks": [],
+                "state_updates": {},
+                "message": f"Error: {str(e)}"
+            }
     
     def generate_tasks(self, project_name: str, weekly_goal: str) -> Dict[str, Any]:
         """

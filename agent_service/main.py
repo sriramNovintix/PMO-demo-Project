@@ -10,8 +10,22 @@ from orchestrator.task_orchestrator import task_orchestrator
 from memory.session_memory import memory
 from database import db
 from resume_parser import resume_parser
+from datetime import datetime
 import PyPDF2
 import io
+import agentops
+from config import Config
+
+# Initialize AgentOps if API key is provided
+if Config.AGENTOPS_API_KEY:
+    agentops.init(
+        api_key=Config.AGENTOPS_API_KEY,
+        default_tags=["task-orchestrator", "production"],
+        auto_start_session=False
+    )
+    print("✅ AgentOps initialized")
+else:
+    print("⚠️  AgentOps API key not found - tracking disabled")
 
 app = FastAPI(
     title="Task Orchestrator - Agent Service",
@@ -66,6 +80,13 @@ async def chat(request: ChatRequest):
     
     The controller agent analyzes the message and dynamically decides next steps
     """
+    # Start AgentOps session for this chat interaction
+    agentops_session = None
+    if Config.AGENTOPS_API_KEY:
+        agentops_session = agentops.start_session(
+            tags=["chat", request.session_id[:8], "user-interaction"]
+        )
+    
     try:
         print(f"\n{'='*60}")
         print(f"📨 INCOMING REQUEST")
@@ -84,6 +105,21 @@ async def chat(request: ChatRequest):
         print(f"   Workflow: {result.get('workflow_type', 'N/A')}")
         print(f"{'='*60}\n")
         
+        # End AgentOps session successfully
+        if agentops_session:
+            agentops.end_session("Success")
+        
+        return result
+    
+    except Exception as e:
+        # End AgentOps session with error
+        if agentops_session:
+            agentops.end_session("Fail")
+        
+        raise HTTPException(
+            status_code=500,
+            detail={"error": str(e)}
+        )
         return result
     
     except Exception as e:
@@ -618,20 +654,20 @@ async def assign_task_to_employee(task_id: str, employee_name: str):
                     "assigned": False
                 }
         
-        # Update task assignment
-        from database import db as database
-        result = database.tasks.update_one(
+        # Update task assignment using db.update_task_assignment
+        now = datetime.now().isoformat()
+        update_result = db.tasks.update_one(
             {"task_id": task_id},
             {
                 "$set": {
                     "assigned_to": employee_name,
                     "assigned_to_email": employee.get('email'),
-                    "updated_at": datetime.now().isoformat()
+                    "updated_at": now
                 }
             }
         )
         
-        if result.modified_count > 0:
+        if update_result.modified_count > 0:
             # Send Slack notification
             from tools.slack_tools import slack_tools
             message = f"""📌 *Task Manually Assigned*
@@ -775,7 +811,7 @@ async def submit_approval(request: ApprovalRequest):
         )
 
 
-# Session Endpoint
+# Session Endpoints
 @app.get("/sessions")
 async def get_all_sessions():
     """Get all sessions from database"""
@@ -787,6 +823,24 @@ async def get_all_sessions():
             "count": len(sessions)
         }
     
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": str(e)}
+        )
+
+
+@app.delete("/sessions/{session_id}")
+async def delete_session(session_id: str):
+    """Delete a session and all associated data from database"""
+    try:
+        result = db.delete_session(session_id)
+        if result["success"]:
+            return {"success": True, "message": result["message"]}
+        else:
+            raise HTTPException(status_code=404, detail=result["error"])
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,

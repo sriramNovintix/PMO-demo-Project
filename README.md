@@ -11,6 +11,7 @@ An intelligent task orchestration system with AI agents, Kanban board, and Slack
 - 💬 Conversation history with context management
 - 📊 Real-time status tracking
 - 🔔 Slack notifications
+- 📈 AgentOps monitoring (optional) - Track agent performance, LLM calls, and costs
 
 ## Quick Start
 
@@ -19,6 +20,7 @@ An intelligent task orchestration system with AI agents, Kanban board, and Slack
 - Node.js 18+
 - MongoDB Atlas account
 - AWS Bedrock access (for AI)
+- AgentOps API key (optional, for monitoring)
 
 ### 1. Backend Setup
 
@@ -36,6 +38,7 @@ MODEL_ID=us.meta.llama3-3-70b-instruct-v1:0
 MONGODB_URI=your_mongodb_uri
 MONGODB_DB_NAME=task_orchestrator
 SLACK_BOT_TOKEN=your_slack_token (optional)
+AGENTOPS_API_KEY=your_agentops_key (optional)
 
 # Start backend
 python main.py
@@ -205,6 +208,23 @@ Edit `agent_service/.env`:
 ```
 MODEL_ID=your_model_id
 ```
+
+### Enable AgentOps Monitoring
+1. Sign up at https://agentops.ai
+2. Get your API key
+3. Add to `.env`:
+```
+AGENTOPS_API_KEY=your_api_key
+```
+4. Restart backend
+5. View metrics at https://app.agentops.ai
+
+AgentOps tracks:
+- Agent execution sessions
+- LLM calls and token usage
+- Operation performance
+- Error rates
+- Cost analysis
 
 ## License
 

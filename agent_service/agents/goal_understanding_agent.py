@@ -5,13 +5,24 @@ Extracts and clarifies project goals from user input
 from typing import Dict, Any
 from langchain_core.prompts import ChatPromptTemplate
 from config import get_llm, invoke_with_prompt
+try:
+    from agentops.sdk.decorators import agent, operation
+    AGENTOPS_AVAILABLE = True
+except ImportError:
+    AGENTOPS_AVAILABLE = False
+    # Create dummy decorators if agentops not available
+    def agent(cls):
+        return cls
+    def operation(func):
+        return func
 
 
 class GoalUnderstandingAgent:
     """
-    Goal Understanding Agent
+    Goal Understanding Agent - Autonomous
     Extracts project name, weekly goal, and clarifies requirements
     """
+    
     
     def __init__(self):
         self.llm = get_llm()
@@ -45,6 +56,71 @@ Current Context:
 Extract and clarify the goal.""")
         ])
     
+    def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute goal understanding - autonomous method
+        Extracts project name and weekly goal from user message
+        
+        Args:
+            state: Current state with user_message
+        
+        Returns:
+            Result with extracted goal information and state updates
+        """
+        try:
+            user_message = state.get("user_message", "")
+            if not user_message:
+                return {
+                    "success": False,
+                    "error": "No user message provided",
+                    "state_updates": {},
+                    "message": "Please provide a message"
+                }
+            
+            existing_context = {
+                "project_name": state.get("project_name"),
+                "weekly_goal": state.get("weekly_goal")
+            }
+            
+            result = self.understand_goal(user_message, existing_context)
+            
+            if result["success"]:
+                # Extract project name and goal
+                extracted_project = result.get("project_name")
+                extracted_goal = result.get("weekly_goal")
+                
+                state_updates = {}
+                
+                # Only update if we got new information
+                if extracted_project and extracted_project != "None" and extracted_project.lower() != "none":
+                    state_updates["project_name"] = extracted_project
+                
+                if extracted_goal and extracted_goal != "None" and extracted_goal.lower() != "none":
+                    state_updates["weekly_goal"] = extracted_goal
+                
+                return {
+                    "success": True,
+                    "state_updates": state_updates,
+                    "extracted_data": result,
+                    "message": "Goal extracted successfully"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": result.get("error"),
+                    "state_updates": {},
+                    "message": f"Failed to extract goal: {result.get('error')}"
+                }
+        
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "state_updates": {},
+                "message": f"Error: {str(e)}"
+            }
+    
+    @operation
     def understand_goal(self, user_message: str, existing_context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Extract and understand project goal

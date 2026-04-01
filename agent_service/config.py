@@ -28,6 +28,9 @@ class Config:
     TRELLO_API_KEY = os.getenv("TRELLO_API_KEY", "")
     TRELLO_TOKEN = os.getenv("TRELLO_TOKEN", "")
     
+    # AgentOps
+    AGENTOPS_API_KEY = os.getenv("AGENTOPS_API_KEY", "")
+    
     # Server
     HOST = "0.0.0.0"
     PORT = 8000

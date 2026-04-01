@@ -1,6 +1,17 @@
 """
 Non-Deterministic Task Orchestrator
 Uses LangGraph for dynamic agent coordination
+
+ARCHITECTURE:
+- All agents are autonomous and self-contained
+- Each agent has an execute(state) method that:
+  * Fetches its own data from DB/tools when needed
+  * Manages its own state
+  * Returns results with state_updates
+  * Can be tested independently
+- Orchestrator nodes simply call agent.execute(state) and merge state_updates
+- Tools are used internally by agents, not exposed in orchestrator
+- Controller agent routes to appropriate agents based on user intent
 """
 from typing import Dict, Any
 from langgraph.graph import StateGraph, END
@@ -20,15 +31,17 @@ from agents.goal_understanding_agent import goal_understanding_agent
 from agents.task_generation_agent import task_generation_agent
 from agents.skill_matching_agent import skill_matching_agent
 from agents.task_allocation_agent import task_allocation_agent
-from agents.notification_agent import notification_agent
 from agents.status_agent import status_agent
 from agents.message_agent import message_agent
 
 
 class TaskOrchestrator:
     """
-    Non-deterministic orchestrator
-    Controller agent decides next steps dynamically
+    Non-deterministic orchestrator with autonomous agents
+    
+    Controller agent decides next steps dynamically.
+    All agents are self-contained and testable independently.
+    Orchestrator nodes use generic pattern: agent.execute(state) → merge state_updates
     """
     
     def __init__(self):
@@ -44,7 +57,6 @@ class TaskOrchestrator:
         workflow.add_node("task_generation", self._task_generation_node)
         workflow.add_node("skill_matching", self._skill_matching_node)
         workflow.add_node("task_allocation", self._task_allocation_node)
-        workflow.add_node("notification", self._notification_node)
         workflow.add_node("status", self._status_node)
         workflow.add_node("message", self._message_node)
         workflow.add_node("human_approval", self._human_approval_node)
@@ -62,7 +74,6 @@ class TaskOrchestrator:
                 "task_generation": "task_generation",
                 "skill_matching": "skill_matching",
                 "task_allocation": "task_allocation",
-                "notification": "notification",
                 "status": "status",
                 "message": "message",
                 "human_approval": "human_approval",
@@ -76,7 +87,6 @@ class TaskOrchestrator:
         workflow.add_edge("task_generation", "controller")
         workflow.add_edge("skill_matching", "controller")
         workflow.add_edge("task_allocation", "controller")
-        workflow.add_edge("notification", "controller")
         workflow.add_edge("status", "controller")
         workflow.add_edge("message", "controller")
         workflow.add_edge("human_approval", "controller")
@@ -147,33 +157,16 @@ class TaskOrchestrator:
         return state
     
     def _goal_understanding_node(self, state: AgentState) -> AgentState:
-        """Goal understanding agent"""
+        """Goal understanding agent - simplified"""
         print(f"\n📋 GOAL UNDERSTANDING AGENT")
-        print(f"   Current state - Project: {state.get('project_name')}, Goal: {state.get('weekly_goal')}")
         
-        existing_context = {
-            "project_name": state.get("project_name"),
-            "weekly_goal": state.get("weekly_goal")
-        }
-        
-        result = goal_understanding_agent.understand_goal(
-            state["user_message"],
-            existing_context
-        )
+        # Call agent's execute method
+        result = goal_understanding_agent.execute(state)
         
         if result["success"]:
-            # Update state with extracted information - CRITICAL FIX
-            extracted_project = result.get("project_name")
-            extracted_goal = result.get("weekly_goal")
-            
-            # Only update if we got new information
-            if extracted_project and extracted_project != "None" and extracted_project.lower() != "none":
-                state["project_name"] = extracted_project
-                print(f"   ✅ Extracted project name: {extracted_project}")
-            
-            if extracted_goal and extracted_goal != "None" and extracted_goal.lower() != "none":
-                state["weekly_goal"] = extracted_goal
-                print(f"   ✅ Extracted weekly goal: {extracted_goal}")
+            # Update state with agent's state_updates
+            state.update(result.get("state_updates", {}))
+            state["response_to_user"] = result.get("message", "")
             
             # Store in memory immediately
             memory.store_state(state["session_id"], state)
@@ -183,14 +176,11 @@ class TaskOrchestrator:
                 state,
                 "goal_understanding",
                 "controller",
-                "Goal extracted successfully",
-                {
-                    "project_name": state.get("project_name"),
-                    "weekly_goal": state.get("weekly_goal"),
-                    "extracted_data": result
-                }
+                result.get("message", "Goal extracted"),
+                result.get("extracted_data", {})
             )
             
+            print(f"   ✅ {result.get('message')}")
             print(f"   Final state - Project: {state.get('project_name')}, Goal: {state.get('weekly_goal')}")
         else:
             add_agent_message(
@@ -205,69 +195,29 @@ class TaskOrchestrator:
         return state
     
     def _task_generation_node(self, state: AgentState) -> AgentState:
-        """Task generation agent"""
+        """Task generation agent - simplified"""
         print(f"\n📝 TASK GENERATION AGENT")
         
-        # Check if we have required information
-        if not state.get("weekly_goal"):
-            print("   ⚠️ Missing weekly goal")
-            add_agent_message(
-                state,
-                "task_generation",
-                "controller",
-                "Missing weekly goal - cannot generate tasks"
-            )
-            mark_agent_completed(state, "task_generation")
-            return state
-        
-        # Use project name or default
-        project_name = state.get("project_name") or "Unnamed Project"
-        weekly_goal = state.get("weekly_goal")
-        
-        print(f"   Project: {project_name}")
-        print(f"   Goal: {weekly_goal}")
-        
-        result = task_generation_agent.generate_tasks(
-            project_name,
-            weekly_goal
-        )
+        # Call agent's execute method
+        result = task_generation_agent.execute(state)
         
         if result["success"]:
-            state["generated_tasks"] = result["tasks"]
-            
-            # Save tasks to database immediately
-            from database import db
-            session_id = state.get("session_id")
-            
-            for task in result["tasks"]:
-                task_data = {
-                    "title": task.get("title", "Untitled Task"),
-                    "description": task.get("description", ""),
-                    "assigned_to": None,  # Not assigned yet
-                    "assigned_to_email": None,
-                    "estimated_hours": task.get("estimated_hours", 0),
-                    "session_id": session_id,
-                    "project_id": project_name
-                }
-                
-                db_result = db.create_task(task_data)
-                if db_result["success"]:
-                    # Store task_id in the task object
-                    task["task_id"] = db_result["task_id"]
-                    print(f"   ✅ Saved task to DB: {task['title']}")
-                else:
-                    print(f"   ⚠️ Failed to save task: {db_result.get('error')}")
+            # Update state with agent's state_updates
+            state.update(result.get("state_updates", {}))
+            state["response_to_user"] = result.get("message", "")
             
             add_agent_message(
                 state,
                 "task_generation",
                 "controller",
-                f"Generated {len(result['tasks'])} tasks",
-                {"tasks": result["tasks"], "total_hours": result["total_estimated_hours"]}
+                result.get("message", "Tasks generated"),
+                {
+                    "tasks": result.get("tasks", []),
+                    "total_hours": result.get("total_estimated_hours", 0)
+                }
             )
             
-            print(f"   Generated {len(result['tasks'])} tasks")
-            print(f"   Total hours: {result['total_estimated_hours']}")
+            print(f"   ✅ {result.get('message')}")
         else:
             add_agent_message(
                 state,
@@ -275,41 +225,32 @@ class TaskOrchestrator:
                 "controller",
                 f"Error: {result.get('error')}"
             )
+            print(f"   ❌ Error: {result.get('error')}")
         
         mark_agent_completed(state, "task_generation")
         return state
     
     def _skill_matching_node(self, state: AgentState) -> AgentState:
-        """Skill matching agent"""
+        """Skill matching agent - simplified"""
         print(f"\n🎯 SKILL MATCHING AGENT")
         
-        if not state.get("generated_tasks") or not state.get("employees"):
-            add_agent_message(
-                state,
-                "skill_matching",
-                "controller",
-                "Missing tasks or employee information"
-            )
-            return state
-        
-        result = skill_matching_agent.match_skills(
-            state["generated_tasks"],
-            state["employees"]
-        )
+        # Call agent's execute method
+        result = skill_matching_agent.execute(state)
         
         if result["success"]:
-            # Store skill matches in state for allocation agent
-            state["skill_matches"] = result["task_matches"]
+            # Update state with agent's state_updates
+            state.update(result.get("state_updates", {}))
+            state["response_to_user"] = result.get("message", "")
             
             add_agent_message(
                 state,
                 "skill_matching",
                 "controller",
-                "Skill matching completed",
-                {"task_matches": result["task_matches"]}
+                result.get("message", "Skill matching completed"),
+                {"task_matches": result.get("task_matches", [])}
             )
             
-            print(f"   Matched {len(result['task_matches'])} tasks")
+            print(f"   ✅ {result.get('message')}")
         else:
             add_agent_message(
                 state,
@@ -317,39 +258,33 @@ class TaskOrchestrator:
                 "controller",
                 f"Error: {result.get('error')}"
             )
+            state["response_to_user"] = result.get("message", "Skill matching failed")
+            print(f"   ❌ Error: {result.get('error')}")
         
         mark_agent_completed(state, "skill_matching")
         return state
     
     def _task_allocation_node(self, state: AgentState) -> AgentState:
-        """Task allocation agent"""
+        """Task allocation agent - simplified"""
         print(f"\n📊 TASK ALLOCATION AGENT")
         
-        if not state.get("skill_matches"):
-            add_agent_message(
-                state,
-                "task_allocation",
-                "controller",
-                "Missing skill matching results"
-            )
-            return state
-        
-        result = task_allocation_agent.allocate_tasks(state["skill_matches"])
+        # Call agent's execute method
+        result = task_allocation_agent.execute(state)
         
         if result["success"]:
-            state["assignment_plan"] = result
-            state["pending_approval"] = True
+            # Update state with agent's state_updates
+            state.update(result.get("state_updates", {}))
+            state["response_to_user"] = result.get("message", "")
             
             add_agent_message(
                 state,
                 "task_allocation",
                 "controller",
-                "Allocation plan created - pending approval",
-                result
+                result.get("message", "Tasks allocated"),
+                result.get("assignment_plan", {})
             )
             
-            print(f"   Created allocation for {len(result['assignments'])} employees")
-            print(f"   Unassigned tasks: {len(result.get('unassigned_tasks', []))}")
+            print(f"   ✅ {result.get('message')}")
         else:
             add_agent_message(
                 state,
@@ -357,168 +292,76 @@ class TaskOrchestrator:
                 "controller",
                 f"Error: {result.get('error')}"
             )
+            print(f"   ❌ Error: {result.get('error')}")
         
         mark_agent_completed(state, "task_allocation")
         return state
     
-    def _notification_node(self, state: AgentState) -> AgentState:
-        """Notification agent"""
-        print(f"\n📢 NOTIFICATION AGENT")
-        
-        # Check if creating project workspace
-        if state.get("workflow_type") == "CREATE_PROJECT" and not state.get("slack_channel_id"):
-            result = notification_agent.create_project_workspace(
-                state["project_name"],
-                state.get("weekly_goal", "")
-            )
-            
-            if result["success"]:
-                state["slack_channel_id"] = result["slack_channel_id"]
-                state["trello_board_id"] = result["trello_board_id"]
-                
-                # Store project in memory
-                memory.store_project(state["project_name"], {
-                    "project_name": state["project_name"],
-                    "slack_channel_id": result["slack_channel_id"],
-                    "trello_board_id": result["trello_board_id"],
-                    "weekly_goal": state.get("weekly_goal")
-                })
-                
-                add_agent_message(
-                    state,
-                    "notification",
-                    "controller",
-                    "Project workspace created",
-                    result
-                )
-                
-                print(f"   Slack channel: {result['slack_channel_id']}")
-                print(f"   Trello board: {result['trello_board_id']}")
-            else:
-                add_agent_message(
-                    state,
-                    "notification",
-                    "controller",
-                    f"Errors: {result['errors']}"
-                )
-        
-        # Check if executing approved assignments
-        elif state.get("approved") and state.get("assignment_plan"):
-            # Get employee data from memory
-            from memory.session_memory import memory
-            employees_data = memory.get_all_employees()
-            
-            result = notification_agent.execute_assignments(
-                state.get("trello_board_id", ""),
-                state["assignment_plan"],
-                employees_data,
-                session_id=state["session_id"],
-                project_id=state.get("project_name")
-            )
-            
-            add_agent_message(
-                state,
-                "notification",
-                "controller",
-                "Assignments executed" if result["success"] else f"Errors: {result['errors']}",
-                result
-            )
-            
-            print(f"   Execution: {'Success' if result['success'] else 'Failed'}")
-        
-        mark_agent_completed(state, "notification")
-        return state
-    
     def _status_node(self, state: AgentState) -> AgentState:
-        """Status agent"""
+        """Status agent - simplified"""
         print(f"\n📊 STATUS AGENT")
         
-        result = status_agent.get_status_update()
+        # Call agent's execute method
+        result = status_agent.execute(state)
         
         if result["success"]:
-            state["response_to_user"] = result["status_message"]
+            state["response_to_user"] = result.get("message", "")
             
             add_agent_message(
                 state,
                 "status",
                 "controller",
                 "Status retrieved",
-                result
+                {
+                    "employee_status": result.get("employee_status", [])
+                }
             )
             
-            print(f"   Status for {len(result.get('employee_status', []))} employees")
+            print(f"   ✅ Status retrieved")
         else:
-            state["response_to_user"] = result["status_message"]
+            state["response_to_user"] = result.get("message", "")
             add_agent_message(
                 state,
                 "status",
                 "controller",
                 f"Error: {result.get('error')}"
             )
+            print(f"   ❌ Error: {result.get('error')}")
         
         mark_agent_completed(state, "status")
         return state
     
     def _message_node(self, state: AgentState) -> AgentState:
-        """Message agent"""
+        """Message agent - simplified"""
         print(f"\n💬 MESSAGE AGENT")
         
-        workflow_type = state.get("workflow_type")
+        # Call agent's execute method
+        result = message_agent.execute(state)
         
-        if workflow_type == "SEND_STATUS":
-            # Send status report to Slack
-            result = message_agent.send_status_report()
-            
-            if result["success"]:
-                state["response_to_user"] = f"Status report sent to Slack #{result['channel']}"
-            else:
-                state["response_to_user"] = result["message"]
+        if result["success"]:
+            state["response_to_user"] = result.get("message", "")
             
             add_agent_message(
                 state,
                 "message",
                 "controller",
-                result["message"],
-                result
+                result.get("message", "Message sent"),
+                {
+                    "channel": result.get("channel"),
+                    "generated_message": result.get("generated_message")
+                }
             )
             
-            print(f"   Status report sent: {result['success']}")
-        
-        elif workflow_type == "SEND_MESSAGE":
-            # Extract message from user input
-            user_message = state.get("user_message", "")
-            
-            # Simple extraction - everything after "send message" or similar
-            message_to_send = user_message
-            if "send message" in user_message.lower():
-                parts = user_message.lower().split("send message")
-                if len(parts) > 1:
-                    message_to_send = parts[1].strip()
-            elif "send" in user_message.lower():
-                parts = user_message.lower().split("send")
-                if len(parts) > 1:
-                    message_to_send = parts[1].strip()
-            
-            if not message_to_send or message_to_send == user_message:
-                state["response_to_user"] = "What message would you like to send to Slack?"
-                state["awaiting_message"] = True
-            else:
-                result = message_agent.send_custom_message(message_to_send)
-                
-                if result["success"]:
-                    state["response_to_user"] = f"Message sent to Slack #{result['channel']}"
-                else:
-                    state["response_to_user"] = result["message"]
-                
-                add_agent_message(
-                    state,
-                    "message",
-                    "controller",
-                    result["message"],
-                    result
-                )
-                
-                print(f"   Message sent: {result['success']}")
+            print(f"   ✅ {result.get('message')}")
+        else:
+            state["response_to_user"] = result.get("message", "")
+            add_agent_message(
+                state,
+                "message",
+                "controller",
+                f"Error: {result.get('error')}"
+            )
+            print(f"   ❌ Error: {result.get('error')}")
         
         mark_agent_completed(state, "message")
         return state
@@ -528,12 +371,10 @@ class TaskOrchestrator:
         print(f"\n👤 HUMAN APPROVAL REQUIRED")
         
         if state.get("pending_approval") and state.get("assignment_plan"):
-            # Send approval request
-            if state.get("slack_channel_id"):
-                notification_agent.send_approval_request(
-                    state["slack_channel_id"],
-                    state["assignment_plan"]
-                )
+            # Send approval request to Slack (no channel_id needed - uses default channel)
+            notification_agent.send_approval_request(
+                state["assignment_plan"]
+            )
             
             # Store pending approval in memory
             memory.add_pending_approval(state["session_id"], {
@@ -575,19 +416,33 @@ class TaskOrchestrator:
             if state.get("weekly_goal"):
                 response += f"🎯 Goal: {state['weekly_goal']}\n"
             
-            # Add task information if tasks were generated
-            if state.get("generated_tasks"):
-                tasks = state["generated_tasks"]
+            # Get tasks from database (more reliable than state)
+            from database import db
+            session_id = state.get("session_id")
+            db_tasks = db.get_all_tasks(session_id) if session_id else []
+            
+            # Use database tasks if available, otherwise use state tasks
+            tasks = db_tasks if db_tasks else state.get("generated_tasks", [])
+            
+            # Add task information if tasks exist
+            if tasks:
                 response += f"\n✅ Generated {len(tasks)} tasks:\n\n"
                 for i, task in enumerate(tasks, 1):  # Show all tasks
                     title = task.get('title', 'Untitled')
                     hours = task.get('estimated_hours', 0)
                     priority = task.get('priority', 'medium')
-                    skills = ', '.join(task.get('required_skills', [])[:3])
+                    assigned_to = task.get('assigned_to', 'Unassigned')
+                    status = task.get('status', 'todo')
+                    
                     response += f"{i}. {title}\n"
                     response += f"   • Duration: {hours}h | Priority: {priority}\n"
+                    response += f"   • Assigned: {assigned_to} | Status: {status}\n"
+                    
+                    # Show skills if available
+                    skills = task.get('required_skills', [])
                     if skills:
-                        response += f"   • Skills: {skills}\n"
+                        skills_str = ', '.join(skills[:3])
+                        response += f"   • Skills: {skills_str}\n"
                     response += "\n"
             else:
                 response += "\n✅ Request processed successfully."

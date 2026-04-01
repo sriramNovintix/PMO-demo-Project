@@ -1,6 +1,6 @@
 """
 Skill Matching Agent
-Matches employee skills to task requirements
+Matches employee skills to task requirements - Autonomous agent
 """
 from typing import Dict, Any, List
 from langchain_core.prompts import ChatPromptTemplate
@@ -9,8 +9,8 @@ from config import get_llm, invoke_with_prompt
 
 class SkillMatchingAgent:
     """
-    Skill Matching Agent
-    Analyzes employee skills and matches them to task requirements
+    Skill Matching Agent - Autonomous
+    Fetches its own data and matches employee skills to task requirements
     """
     
     def __init__(self):
@@ -30,9 +30,11 @@ Respond in JSON format:
     "task_matches": [
         {{
             "task_title": "Task name",
+            "task_id": "task_id",
             "matches": [
                 {{
                     "employee_name": "Name",
+                    "employee_id": "id",
                     "match_score": 0.0-1.0,
                     "matching_skills": ["skill1"],
                     "missing_skills": ["skill2"],
@@ -50,6 +52,81 @@ Employees:
 
 Match employees to tasks based on skills.""")
         ])
+    
+    def execute(self, state: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Execute skill matching - autonomous method
+        Fetches data, processes, and returns results
+        
+        Args:
+            state: Current state (may contain tasks, employees, session_id)
+        
+        Returns:
+            Result with task_matches and updated state
+        """
+        try:
+            # Get tasks - from state or database
+            tasks = state.get("generated_tasks", [])
+            if not tasks:
+                # Fetch from database
+                from database import db
+                session_id = state.get("session_id")
+                if session_id:
+                    tasks = db.get_all_tasks(session_id)
+            
+            if not tasks:
+                return {
+                    "success": False,
+                    "error": "No tasks available for matching",
+                    "task_matches": [],
+                    "state_updates": {}
+                }
+            
+            # Get employees - from state or database
+            employees = state.get("employees", [])
+            if not employees:
+                # Fetch from database
+                from database import db
+                employees = db.get_all_employees()
+            
+            if not employees:
+                return {
+                    "success": False,
+                    "error": "No employees found in database",
+                    "task_matches": [],
+                    "state_updates": {},
+                    "message": "Please add employees to the system first."
+                }
+            
+            # Perform skill matching
+            result = self.match_skills(tasks, employees)
+            
+            if result["success"]:
+                return {
+                    "success": True,
+                    "task_matches": result["task_matches"],
+                    "state_updates": {
+                        "skill_matches": result["task_matches"],
+                        "employees": employees,
+                        "generated_tasks": tasks
+                    },
+                    "message": f"Matched {len(result['task_matches'])} tasks to employees"
+                }
+            else:
+                return {
+                    "success": False,
+                    "error": result.get("error"),
+                    "task_matches": [],
+                    "state_updates": {}
+                }
+        
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "task_matches": [],
+                "state_updates": {}
+            }
     
     def match_skills(self, tasks: List[Dict[str, Any]], employees: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
