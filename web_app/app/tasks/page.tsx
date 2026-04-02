@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Loader2, CheckCircle, Clock, ListTodo, Filter, X } from 'lucide-react'
+import { Loader2, CheckCircle, Clock, ListTodo, Filter, X, UserPlus } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -19,12 +19,20 @@ interface Task {
   completed_at?: string
 }
 
+interface Employee {
+  name: string
+  email: string
+  skills: string[]
+}
+
 export default function TasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [draggedTask, setDraggedTask] = useState<Task | null>(null)
   const [filterEmployee, setFilterEmployee] = useState<string>('all')
-  const [employees, setEmployees] = useState<string[]>([])
+  const [employees, setEmployees] = useState<Employee[]>([])
+  const [assigningTask, setAssigningTask] = useState<string | null>(null)
+  const [selectedEmployee, setSelectedEmployee] = useState<string>('')
 
   useEffect(() => {
     loadTasks()
@@ -45,10 +53,27 @@ export default function TasksPage() {
   const loadEmployees = async () => {
     try {
       const response = await axios.get(`${API_URL}/employees`)
-      const empList = response.data.employees.map((emp: any) => emp.name)
-      setEmployees(empList)
+      setEmployees(response.data.employees || [])
     } catch (error) {
       console.error('Error loading employees:', error)
+    }
+  }
+
+  const assignTaskToEmployee = async (taskId: string, employeeName: string) => {
+    try {
+      const response = await axios.post(`${API_URL}/tasks/${taskId}/assign?employee_name=${employeeName}`)
+      
+      if (response.data.success) {
+        alert(`Task assigned to ${employeeName} successfully!`)
+        loadTasks()
+        setAssigningTask(null)
+        setSelectedEmployee('')
+      } else {
+        alert(response.data.message || 'Failed to assign task')
+      }
+    } catch (error: any) {
+      console.error('Error assigning task:', error)
+      alert(error.response?.data?.detail || 'Failed to assign task')
     }
   }
 
@@ -148,7 +173,7 @@ export default function TasksPage() {
             <option value="all">All Tasks</option>
             <option value="unassigned">Unassigned Tasks</option>
             {employees.map(emp => (
-              <option key={emp} value={emp}>{emp}</option>
+              <option key={emp.name} value={emp.name}>{emp.name}</option>
             ))}
           </select>
 
@@ -215,28 +240,76 @@ export default function TasksPage() {
                         </p>
                       )}
 
-                      <div className="flex items-center justify-between text-xs text-gray-500">
-                        <div>
-                          {task.assigned_to ? (
-                            <>
-                              <p className="font-medium text-gray-700">
-                                👤 {task.assigned_to}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <div>
+                            {task.assigned_to ? (
+                              <>
+                                <p className="font-medium text-gray-700">
+                                  👤 {task.assigned_to}
+                                </p>
+                                <p className="text-gray-500">
+                                  ⏱️ {task.estimated_hours}h
+                                </p>
+                              </>
+                            ) : (
+                              <p className="font-medium text-orange-600">
+                                ⚠️ Unassigned
                               </p>
-                              <p className="text-gray-500">
-                                ⏱️ {task.estimated_hours}h
-                              </p>
-                            </>
-                          ) : (
-                            <p className="font-medium text-orange-600">
-                              ⚠️ Unassigned
-                            </p>
+                            )}
+                          </div>
+                          
+                          {task.completed_at && (
+                            <div className="text-green-600 font-medium">
+                              ✓ Done
+                            </div>
                           )}
                         </div>
-                        
-                        {task.completed_at && (
-                          <div className="text-green-600 font-medium">
-                            ✓ Done
+
+                        {/* Manual Assignment Button */}
+                        {assigningTask === task.task_id ? (
+                          <div className="flex gap-2 mt-2">
+                            <select
+                              value={selectedEmployee}
+                              onChange={(e) => setSelectedEmployee(e.target.value)}
+                              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">Select Employee</option>
+                              {employees.map(emp => (
+                                <option key={emp.name} value={emp.name}>
+                                  {emp.name}
+                                </option>
+                              ))}
+                            </select>
+                            <button
+                              onClick={() => {
+                                if (selectedEmployee) {
+                                  assignTaskToEmployee(task.task_id, selectedEmployee)
+                                }
+                              }}
+                              disabled={!selectedEmployee}
+                              className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
+                            >
+                              Assign
+                            </button>
+                            <button
+                              onClick={() => {
+                                setAssigningTask(null)
+                                setSelectedEmployee('')
+                              }}
+                              className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
+                            >
+                              Cancel
+                            </button>
                           </div>
+                        ) : (
+                          <button
+                            onClick={() => setAssigningTask(task.task_id)}
+                            className="w-full mt-2 flex items-center justify-center gap-1 px-3 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 border border-blue-200"
+                          >
+                            <UserPlus size={14} />
+                            {task.assigned_to ? 'Reassign' : 'Assign to Employee'}
+                          </button>
                         )}
                       </div>
                     </div>

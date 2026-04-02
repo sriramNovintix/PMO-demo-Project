@@ -1,19 +1,23 @@
 """
 Task Allocation Agent
 Creates optimal task allocation plan based on skill matching
+Standalone runnable agent with state management
 """
 from typing import Dict, Any, List
 from langchain_core.prompts import ChatPromptTemplate
 from config import get_llm, invoke_with_prompt
+from agents.base_agent import BaseAgent
+import json
 
 
-class TaskAllocationAgent:
+class TaskAllocationAgent(BaseAgent):
     """
     Task Allocation Agent
     Creates balanced task allocation plan considering skills and workload
     """
     
     def __init__(self):
+        super().__init__("task_allocation_agent")
         self.llm = get_llm()
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a Task Allocation Agent.
@@ -63,10 +67,11 @@ Create optimal allocation plan.""")
             skill_matches: Skill matching results from SkillMatchingAgent
         
         Returns:
-            Task allocation plan
+            Task allocation plan with state updates
         """
         try:
-            import json
+            # Log input
+            self.log_action("allocate_tasks_start", "processing", matches_count=len(skill_matches))
             
             skill_matches_str = json.dumps(skill_matches, indent=2)
             
@@ -86,6 +91,9 @@ Create optimal allocation plan.""")
             
             result = json.loads(content)
             
+            # Log success
+            self.log_action("allocate_tasks_complete", "success", assignments_count=len(result.get("assignments", {})))
+            
             return {
                 "success": True,
                 "assignments": result.get("assignments", {}),
@@ -94,6 +102,9 @@ Create optimal allocation plan.""")
             }
         
         except Exception as e:
+            # Log error
+            self.log_action("allocate_tasks_error", "failed", error=str(e))
+            
             return {
                 "success": False,
                 "error": str(e),

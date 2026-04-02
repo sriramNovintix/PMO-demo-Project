@@ -62,16 +62,38 @@ export default function Sidebar() {
     }
   }
 
-  const createNewSession = () => {
+  const createNewSession = async () => {
     const newSession: Session = {
       id: `manager_${Math.random().toString(36).substr(2, 9)}`,
       name: `Session ${sessions.length + 1}`,
       created_at: new Date().toISOString()
     }
-    const updated = [...sessions, newSession]
-    setSessions(updated)
-    localStorage.setItem('sessions', JSON.stringify(updated))
-    router.push(`/?session=${newSession.id}`)
+    
+    // Save to backend first
+    try {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/session/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: newSession.id,
+          project_name: newSession.name
+        })
+      })
+      
+      if (response.ok) {
+        const updated = [...sessions, newSession]
+        setSessions(updated)
+        localStorage.setItem('sessions', JSON.stringify(updated))
+        router.push(`/?session=${newSession.id}`)
+      }
+    } catch (error) {
+      console.error('Error creating session:', error)
+      // Fallback: create locally
+      const updated = [...sessions, newSession]
+      setSessions(updated)
+      localStorage.setItem('sessions', JSON.stringify(updated))
+      router.push(`/?session=${newSession.id}`)
+    }
   }
 
   const renameSession = (id: string) => {

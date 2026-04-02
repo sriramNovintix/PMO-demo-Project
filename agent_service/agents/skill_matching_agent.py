@@ -1,19 +1,23 @@
 """
 Skill Matching Agent
 Matches employee skills to task requirements
+Standalone runnable agent with state management
 """
 from typing import Dict, Any, List
 from langchain_core.prompts import ChatPromptTemplate
 from config import get_llm, invoke_with_prompt
+from agents.base_agent import BaseAgent
+import json
 
 
-class SkillMatchingAgent:
+class SkillMatchingAgent(BaseAgent):
     """
     Skill Matching Agent
     Analyzes employee skills and matches them to task requirements
     """
     
     def __init__(self):
+        super().__init__("skill_matching_agent")
         self.llm = get_llm()
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a Skill Matching Agent.
@@ -60,10 +64,11 @@ Match employees to tasks based on skills.""")
             employees: List of employees with their skills
         
         Returns:
-            Skill matching results
+            Skill matching results with state updates
         """
         try:
-            import json
+            # Log input
+            self.log_action("match_skills_start", "processing", tasks_count=len(tasks), employees_count=len(employees))
             
             # Format tasks and employees for prompt
             tasks_str = json.dumps(tasks, indent=2)
@@ -86,12 +91,18 @@ Match employees to tasks based on skills.""")
             
             result = json.loads(content)
             
+            # Log success
+            self.log_action("match_skills_complete", "success", matches_count=len(result.get("task_matches", [])))
+            
             return {
                 "success": True,
                 "task_matches": result.get("task_matches", [])
             }
         
         except Exception as e:
+            # Log error
+            self.log_action("match_skills_error", "failed", error=str(e))
+            
             return {
                 "success": False,
                 "error": str(e),

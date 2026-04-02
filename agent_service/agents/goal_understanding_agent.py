@@ -1,19 +1,23 @@
 """
 Goal Understanding Agent
 Extracts and clarifies project goals from user input
+Standalone runnable agent with state management
 """
 from typing import Dict, Any
 from langchain_core.prompts import ChatPromptTemplate
 from config import get_llm, invoke_with_prompt
+from agents.base_agent import BaseAgent
+import json
 
 
-class GoalUnderstandingAgent:
+class GoalUnderstandingAgent(BaseAgent):
     """
     Goal Understanding Agent
     Extracts project name, weekly goal, and clarifies requirements
     """
     
     def __init__(self):
+        super().__init__("goal_understanding_agent")
         self.llm = get_llm()
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", """You are a Goal Understanding Agent.
@@ -54,10 +58,13 @@ Extract and clarify the goal.""")
             existing_context: Existing project context
         
         Returns:
-            Extracted goal information
+            Extracted goal information with state updates
         """
         try:
             existing_context = existing_context or {}
+            
+            # Log input
+            self.log_action("understand_goal_start", "processing", user_message=user_message)
             
             # Format and invoke
             response = invoke_with_prompt(
@@ -69,7 +76,6 @@ Extract and clarify the goal.""")
             )
             
             # Parse response
-            import json
             content = response.content
             
             if "```json" in content:
@@ -79,12 +85,18 @@ Extract and clarify the goal.""")
             
             result = json.loads(content)
             
+            # Log success
+            self.log_action("understand_goal_complete", "success", result=result)
+            
             return {
                 "success": True,
                 **result
             }
         
         except Exception as e:
+            # Log error
+            self.log_action("understand_goal_error", "failed", error=str(e))
+            
             return {
                 "success": False,
                 "error": str(e)

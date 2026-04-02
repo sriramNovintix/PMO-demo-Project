@@ -45,14 +45,6 @@ export default function Home() {
     }
   }, [urlSessionId])
 
-  // Don't register session in localStorage anymore - use MongoDB only
-  useEffect(() => {
-    if (!sessionId) return
-    
-    // Session will be created in MongoDB when first message is sent
-    // No need to store in localStorage
-  }, [sessionId])
-
   useEffect(() => {
     if (!sessionId) return
     
@@ -91,41 +83,15 @@ export default function Home() {
           localStorage.setItem(`session_${sessionId}`, JSON.stringify(loadedMessages))
         }
       } catch (error: any) {
-        // If session not found in backend, try localStorage
-        if (error.response?.status === 404) {
-          const stored = localStorage.getItem(`session_${sessionId}`)
-          if (stored) {
-            const parsedMessages = JSON.parse(stored)
-            setMessages(parsedMessages.map((msg: any) => ({
-              ...msg,
-              timestamp: new Date(msg.timestamp)
-            })))
-          } else {
-            // Welcome message for new session
-            setMessages([{
-              role: 'agent',
-              content: 'Hello! I\'m your task orchestrator. Tell me what you\'d like to do:\n\n• Set weekly goals\n• Upload candidate resumes\n• Search candidates by skills\n• Assign tasks to team',
-              timestamp: new Date()
-            }])
-          }
-        } else {
-          console.error('Error loading session:', error)
-          // Fallback to localStorage
-          const stored = localStorage.getItem(`session_${sessionId}`)
-          if (stored) {
-            const parsedMessages = JSON.parse(stored)
-            setMessages(parsedMessages.map((msg: any) => ({
-              ...msg,
-              timestamp: new Date(msg.timestamp)
-            })))
-          } else {
-            setMessages([{
-              role: 'agent',
-              content: 'Hello! I\'m your task orchestrator. Tell me what you\'d like to do:\n\n• Set weekly goals\n• Upload candidate resumes\n• Search candidates by skills\n• Assign tasks to team',
-              timestamp: new Date()
-            }])
-          }
+        console.error('Error loading session from backend:', error)
+        // If session not found in backend, show welcome message
+        const welcomeMessage: Message = {
+          role: 'agent',
+          content: 'Hello! I\'m your task orchestrator. Tell me what you\'d like to do:\n\n• Set weekly goals\n• Upload candidate resumes\n• Search candidates by skills\n• Assign tasks to team',
+          timestamp: new Date()
         }
+        setMessages([welcomeMessage])
+        localStorage.setItem(`session_${sessionId}`, JSON.stringify([welcomeMessage]))
       }
     }
     

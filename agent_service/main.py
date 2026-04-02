@@ -6,12 +6,17 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
-from orchestrator.task_orchestrator import task_orchestrator
+# Orchestrator imported in chat endpoint
 from memory.session_memory import memory
 from database import db
 from resume_parser import resume_parser
+from router import register_routes
 import PyPDF2
 import io
+import agentops
+import os
+
+agentops.init(api_key=os.getenv("AGENTOPS_API_KEY", ""), default_tags=["PMO-demo-Project"])
 
 app = FastAPI(
     title="Task Orchestrator - Agent Service",
@@ -28,6 +33,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register agent routes
+register_routes(app)
 
 # Request Models
 class ChatRequest(BaseModel):
@@ -62,9 +69,17 @@ class ApprovalRequest(BaseModel):
 @app.post("/chat")
 async def chat(request: ChatRequest):
     """
-    Main chat endpoint - processes user messages through orchestrator
+    Main chat endpoint - intelligently routes to appropriate agents
     
-    The controller agent analyzes the message and dynamically decides next steps
+    The orchestrator analyzes user intent and dynamically routes to the right agents:
+    - Goal setting → goal_understanding agent
+    - Task generation → task_generation agent
+    - Task assignment → skill_matching + task_allocation agents
+    - Status check → status agent
+    - Slack messaging → message agent
+    - Candidate selection → recruitment agent
+    
+    All agents are called dynamically based on the situation, not hardcoded.
     """
     try:
         print(f"\n{'='*60}")
@@ -73,7 +88,9 @@ async def chat(request: ChatRequest):
         print(f"   Message: {request.message}")
         print(f"{'='*60}\n")
         
-        result = task_orchestrator.process_message(
+        # Use central orchestrator
+        from orchestrators.central_orchestrator import central_orchestrator
+        result = central_orchestrator.process_message(
             session_id=request.session_id,
             user_message=request.message
         )
@@ -81,7 +98,7 @@ async def chat(request: ChatRequest):
         print(f"\n{'='*60}")
         print(f"✅ RESPONSE READY")
         print(f"   Success: {result.get('success', False)}")
-        print(f"   Workflow: {result.get('workflow_type', 'N/A')}")
+        print(f"   Intent: {result.get('intent', 'N/A')}")
         print(f"{'='*60}\n")
         
         return result
@@ -553,9 +570,10 @@ async def update_task_status(task_id: str, status: str):
 *New Status:* {status.replace('_', ' ').title()}
 *Updated:* {task['updated_at']}"""
             
-            from tools.slack_tools import slack_tools
-            slack_tools.send_message_to_channel(
-                channel_name="demo-projects",
+            from tools.slack_tool import slack_tool
+            slack_tool.invoke(
+                action="send_message",
+                channel="demo-projects",
                 message=message
             )
             
@@ -585,6 +603,8 @@ async def assign_task_to_employee(task_id: str, employee_name: str):
         employee_name: Employee name to assign to
     """
     try:
+        from datetime import datetime
+        
         # Get task
         tasks = db.get_all_tasks()
         task = next((t for t in tasks if t['task_id'] == task_id), None)
@@ -599,28 +619,8 @@ async def assign_task_to_employee(task_id: str, employee_name: str):
         if not employee:
             raise HTTPException(status_code=404, detail="Employee not found")
         
-        # Validate skills (at least some overlap)
-        task_title_lower = task['title'].lower()
-        employee_skills_lower = [s.lower() for s in employee.get('skills', [])]
-        
-        # Check if any employee skill is mentioned in task title
-        has_relevant_skill = any(skill in task_title_lower for skill in employee_skills_lower)
-        
-        if not has_relevant_skill:
-            # Check if task mentions any technical terms that might match
-            common_tech_terms = ['api', 'database', 'frontend', 'backend', 'test', 'deploy', 'design', 'auth']
-            has_general_match = any(term in task_title_lower for term in common_tech_terms)
-            
-            if not has_general_match:
-                return {
-                    "success": False,
-                    "message": f"Warning: {employee_name} may not have relevant skills for this task. Task requires different expertise.",
-                    "assigned": False
-                }
-        
         # Update task assignment
-        from database import db as database
-        result = database.tasks.update_one(
+        result = db.tasks.update_one(
             {"task_id": task_id},
             {
                 "$set": {
@@ -633,7 +633,7 @@ async def assign_task_to_employee(task_id: str, employee_name: str):
         
         if result.modified_count > 0:
             # Send Slack notification
-            from tools.slack_tools import slack_tools
+            from tools.slack_tool import slack_tool
             message = f"""📌 *Task Manually Assigned*
 
 *Task:* {task['title']}
@@ -643,10 +643,14 @@ async def assign_task_to_employee(task_id: str, employee_name: str):
 
 Task has been assigned successfully!"""
             
-            slack_tools.send_message_to_channel(
-                channel_name="demo-projects",
-                message=message
-            )
+            try:
+                slack_tool.invoke(
+                    action="send_message",
+                    channel="demo-projects",
+                    message=message
+                )
+            except Exception as e:
+                print(f"Warning: Could not send Slack notification: {e}")
             
             return {
                 "success": True,
@@ -659,6 +663,8 @@ Task has been assigned successfully!"""
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail={"error": str(e)}
@@ -794,6 +800,38 @@ async def get_all_sessions():
         )
 
 
+@app.post("/session/create")
+async def create_session(request: Dict[str, Any]):
+    """Create a new session in database"""
+    try:
+        session_id = request.get("session_id")
+        project_name = request.get("project_name", f"Session {session_id[-8:]}")
+        
+        if not session_id:
+            raise HTTPException(status_code=400, detail="session_id is required")
+        
+        # Create session in database
+        memory.create_session(session_id)
+        
+        # Initialize with empty state
+        from state import create_initial_state
+        initial_state = create_initial_state(session_id, "")
+        initial_state["project_name"] = project_name
+        memory.store_state(session_id, initial_state)
+        
+        return {
+            "success": True,
+            "message": "Session created successfully",
+            "session_id": session_id
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail={"error": str(e)}
+        )
+
+
 @app.get("/session/{session_id}")
 async def get_session(session_id: str):
     """Get session state from database"""
@@ -801,10 +839,11 @@ async def get_session(session_id: str):
         state = memory.get_latest_state(session_id)
         
         if not state:
-            raise HTTPException(
-                status_code=404,
-                detail="Session not found"
-            )
+            # Create new session if it doesn't exist
+            memory.create_session(session_id)
+            from state import create_initial_state
+            state = create_initial_state(session_id, "")
+            memory.store_state(session_id, state)
         
         return {
             "success": True,
@@ -885,9 +924,8 @@ if __name__ == "__main__":
     
     print("🚀 Starting Task Orchestrator Agent Service v2.0")
     print(f"   Port: {Config.PORT}")
-    print(f"   Model: {Config.MODEL_ID}")
     print(f"   Database: MongoDB ({Config.MONGODB_DB_NAME})")
-    print(f"   Features: Candidate Management, Database Persistence, Task Management")
+    print(f"   Features: MCP Architecture, Clean Code, State Management")
     
     uvicorn.run(
         app,

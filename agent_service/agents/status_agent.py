@@ -1,16 +1,21 @@
 """
 Status Agent
 Provides status updates for tasks and employees
+Standalone runnable agent with state management
 """
 from typing import Dict, Any
 from database import db
+from agents.base_agent import BaseAgent
 
 
-class StatusAgent:
+class StatusAgent(BaseAgent):
     """
     Status Agent
     Retrieves and formats status information
     """
+    
+    def __init__(self):
+        super().__init__("status_agent")
     
     def get_status_update(self) -> Dict[str, Any]:
         """
