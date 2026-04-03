@@ -12,7 +12,7 @@ An intelligent task orchestration system with AI agents, Kanban board, and Slack
 - 📊 Real-time status tracking
 - 🔔 Slack notifications
 
-## Quick Start
+## Quick Start[]
 
 ### Prerequisites
 - Python 3.9+
