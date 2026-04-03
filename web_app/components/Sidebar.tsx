@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Target, Users, UserPlus, MessageSquare, Edit2, Trash2, Plus, MoreVertical } from 'lucide-react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 
 interface Session {
   id: string
@@ -11,7 +11,7 @@ interface Session {
   created_at: string
 }
 
-export default function Sidebar() {
+function SidebarContent() {
   const pathname = usePathname()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -276,5 +276,22 @@ export default function Sidebar() {
         <p>© 2024 TaskFlow</p>
       </div>
     </aside>
+  )
+}
+
+export default function Sidebar() {
+  return (
+    <Suspense fallback={
+      <aside className="w-64 bg-gray-900 text-white h-screen flex flex-col fixed">
+        <div className="p-6 border-b border-gray-800">
+          <div className="flex items-center gap-2">
+            <Target className="text-blue-400" size={28} />
+            <h1 className="text-base font-bold">TaskFlow</h1>
+          </div>
+        </div>
+      </aside>
+    }>
+      <SidebarContent />
+    </Suspense>
   )
 }
