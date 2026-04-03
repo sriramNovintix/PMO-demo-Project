@@ -304,76 +304,77 @@ export default function Home() {
   const userHasSentMessage = messages.some(msg => msg.role === 'user')
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="container mx-auto px-8 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      <div className="container mx-auto px-4 py-6 max-w-7xl h-screen flex flex-col">
         {!userHasSentMessage ? (
-          // Welcome Screen
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-12 pt-12">
-              <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl mb-6 shadow-lg">
-                <Sparkles className="text-white" size={40} />
+          // Welcome Screen - Cleaner Design
+          <div className="max-w-5xl mx-auto flex-1 flex flex-col justify-center">
+            {/* Header */}
+            <div className="text-center mb-10 pt-8">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl mb-4 shadow-md">
+                <Sparkles className="text-white" size={32} />
               </div>
-              <h1 className="text-5xl font-bold text-gray-800 mb-4">
-                Welcome to TaskFlow
+              <h1 className="text-4xl font-bold text-gray-900 mb-3">
+                TaskFlow
               </h1>
-              <p className="text-xl text-gray-600 mb-8">
-                Your AI-powered assistant for managing teams, candidates, and tasks
+              <p className="text-lg text-gray-600">
+                AI-powered task orchestration and team management
               </p>
             </div>
 
-            {/* Feature Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
-              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow border border-gray-100">
-                <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                  <Target className="text-blue-600" size={24} />
+            {/* Feature Cards - Simplified */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <div className="bg-white rounded-lg shadow-sm p-5 hover:shadow-md transition-shadow border border-gray-100">
+                <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center mb-3">
+                  <Target className="text-blue-600" size={20} />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Set Goals</h3>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Set Goals</h3>
                 <p className="text-gray-600 text-sm">
-                  Define weekly goals and let AI break them down into actionable tasks
+                  Define goals and generate tasks automatically
                 </p>
               </div>
 
-              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow border border-gray-100">
-                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mb-4">
-                  <UserPlus className="text-purple-600" size={24} />
+              <div className="bg-white rounded-lg shadow-sm p-5 hover:shadow-md transition-shadow border border-gray-100">
+                <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center mb-3">
+                  <UserPlus className="text-purple-600" size={20} />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Find Talent</h3>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Find Talent</h3>
                 <p className="text-gray-600 text-sm">
-                  Search and match candidates based on skills and requirements
+                  Search and match candidates by skills
                 </p>
               </div>
 
-              <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-xl transition-shadow border border-gray-100">
-                <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center mb-4">
-                  <Users className="text-green-600" size={24} />
+              <div className="bg-white rounded-lg shadow-sm p-5 hover:shadow-md transition-shadow border border-gray-100">
+                <div className="w-10 h-10 bg-green-50 rounded-lg flex items-center justify-center mb-3">
+                  <Users className="text-green-600" size={20} />
                 </div>
-                <h3 className="text-lg font-bold text-gray-800 mb-2">Assign Tasks</h3>
+                <h3 className="text-base font-semibold text-gray-900 mb-1">Assign Tasks</h3>
                 <p className="text-gray-600 text-sm">
-                  Intelligently distribute work across your team based on capacity
+                  Distribute work intelligently across team
                 </p>
               </div>
             </div>
 
-            {/* Quick Start */}
-            <div className="bg-white rounded-xl shadow-lg p-8 border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-800 mb-6 flex items-center gap-2">
-                <Sparkles className="text-blue-500" size={24} />
-                Get Started
+            {/* Quick Start - Cleaner */}
+            <div className="bg-white rounded-lg shadow-sm p-6 border border-gray-100">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                <Sparkles className="text-blue-600" size={20} />
+                Quick Start
               </h2>
-              <div className="space-y-3 mb-6">
+              <div className="space-y-2 mb-5">
                 {quickActions.map((action, idx) => (
                   <button
                     key={idx}
                     onClick={() => setInput(action)}
-                    className="w-full text-left p-4 bg-gradient-to-r from-gray-50 to-gray-100 hover:from-blue-50 hover:to-purple-50 rounded-lg transition-all border border-gray-200 hover:border-blue-300 hover:shadow-md"
+                    className="w-full text-left px-4 py-3 bg-gray-50 hover:bg-blue-50 rounded-lg transition-colors border border-gray-200 hover:border-blue-300 text-sm"
                   >
-                    <span className="text-gray-700 font-medium">{action}</span>
+                    <span className="text-gray-700">{action}</span>
                   </button>
                 ))}
               </div>
               
-              {/* Input */}
-              <div className="flex gap-3">
+              {/* Input - Simplified */}
+              <div className="flex gap-2">
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
@@ -383,51 +384,52 @@ export default function Home() {
                       sendMessage()
                     }
                   }}
-                  placeholder="Or type your own message here..."
-                  className="flex-1 p-4 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                  rows={3}
+                  placeholder="Or type your message here..."
+                  className="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                  rows={2}
                   disabled={loading}
                 />
                 <button
                   onClick={sendMessage}
                   disabled={loading || !input.trim()}
-                  className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
+                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm hover:shadow transition-all"
                 >
-                  {loading ? <Loader2 className="animate-spin" size={24} /> : <Send size={24} />}
+                  {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
                 </button>
               </div>
             </div>
           </div>
         ) : (
-          // Chat Interface
-          <div className="max-w-5xl mx-auto">
-            <div className="bg-white rounded-xl shadow-lg p-6 border border-gray-100">
-              <div className="flex items-center gap-3 mb-6 pb-4 border-b border-gray-200">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Sparkles className="text-white" size={20} />
+          // Chat Interface - Cleaner Design
+          <div className="max-w-4xl mx-auto flex-1 flex flex-col h-full">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col h-full">
+              {/* Header - Simplified */}
+              <div className="flex items-center gap-3 px-5 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+                <div className="w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center">
+                  <Sparkles className="text-white" size={18} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-bold text-gray-800">TaskFlow</h2>
-                  <p className="text-sm text-gray-500">AI Assistant</p>
+                  <h2 className="text-lg font-semibold text-gray-900">TaskFlow</h2>
+                  <p className="text-xs text-gray-600">{sessionId.substring(0, 20)}...</p>
                 </div>
               </div>
               
-              {/* Messages */}
-              <div className="h-[500px] overflow-y-auto mb-6 space-y-4 bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6">
+              {/* Messages - Cleaner */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-gray-50">
                 {messages.map((msg, idx) => (
                   <div
                     key={idx}
                     className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
                     <div
-                      className={`max-w-[80%] rounded-xl p-4 shadow-sm ${
+                      className={`max-w-[75%] rounded-lg px-4 py-3 shadow-sm ${
                         msg.role === 'user'
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white'
-                          : 'bg-white border border-gray-200'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white border border-gray-200 text-gray-900'
                       }`}
                     >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                      <p className={`text-xs mt-2 ${msg.role === 'user' ? 'text-blue-100' : 'text-gray-400'}`}>
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
+                      <p className={`text-xs mt-1.5 ${msg.role === 'user' ? 'text-blue-100' : 'text-gray-400'}`}>
                         {msg.timestamp.toLocaleTimeString()}
                       </p>
                     </div>
@@ -435,104 +437,106 @@ export default function Home() {
                 ))}
                 {loading && (
                   <div className="flex justify-start">
-                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
-                      <Loader2 className="animate-spin text-blue-500" />
+                    <div className="bg-white border border-gray-200 rounded-lg px-4 py-3 shadow-sm">
+                      <Loader2 className="animate-spin text-blue-600" size={20} />
                     </div>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Approval Section */}
+              {/* Approval Section - Cleaner */}
               {pendingApproval && (
-                <div className="mb-6 bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-300 rounded-xl p-5 shadow-md">
-                  <h3 className="font-bold text-yellow-800 mb-3 flex items-center gap-2">
-                    <CheckCircle size={20} />
-                    Task Assignment Approval Required
+                <div className="mx-5 mb-4 bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <h3 className="font-semibold text-amber-900 mb-2 flex items-center gap-2 text-sm">
+                    <CheckCircle size={16} />
+                    Approval Required
                   </h3>
                   {pendingApproval.assignments && (
-                    <div className="mb-4 text-sm space-y-1">
+                    <div className="mb-3 text-xs space-y-1">
                       {Object.entries(pendingApproval.assignments).map(([employee, data]: [string, any]) => (
-                        <p key={employee} className="text-gray-700 bg-white rounded-lg p-2">
-                          <strong>{employee}:</strong> {data.tasks.length} tasks ({data.total_hours} hours)
+                        <p key={employee} className="text-gray-700 bg-white rounded px-2 py-1">
+                          <strong>{employee}:</strong> {data.tasks.length} tasks ({data.total_hours}h)
                         </p>
                       ))}
                     </div>
                   )}
-                  <div className="flex gap-3">
+                  <div className="flex gap-2">
                     <button
                       onClick={() => handleApproval(true)}
                       disabled={loading}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 text-sm shadow-sm transition-all"
                     >
-                      <CheckCircle size={18} />
+                      <CheckCircle size={16} />
                       Approve
                     </button>
                     <button
                       onClick={() => handleApproval(false)}
                       disabled={loading}
-                      className="flex items-center gap-2 px-5 py-2.5 bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50 shadow-md hover:shadow-lg transition-all"
+                      className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 text-sm shadow-sm transition-all"
                     >
-                      <XCircle size={18} />
+                      <XCircle size={16} />
                       Reject
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* Input */}
-              <div className="flex gap-3">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                />
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={loading}
-                  className="p-4 border-2 border-gray-300 rounded-xl hover:bg-gray-50 disabled:opacity-50 transition-colors"
-                  title="Upload Resume (PDF)"
-                >
-                  <Paperclip size={24} className="text-gray-600" />
-                </button>
-                <div className="flex-1 relative">
-                  {selectedFile && (
-                    <div className="absolute -top-10 left-0 right-0 bg-blue-100 border border-blue-300 rounded-lg p-2 flex items-center justify-between">
-                      <span className="text-sm text-blue-800 truncate flex-1">
-                        📄 {selectedFile.name}
-                      </span>
-                      <button
-                        onClick={removeSelectedFile}
-                        className="ml-2 text-blue-600 hover:text-blue-800"
-                      >
-                        <X size={16} />
-                      </button>
-                    </div>
-                  )}
-                  <textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault()
-                        sendMessage()
-                      }
-                    }}
-                    placeholder={selectedFile ? "Add a message about this resume..." : "Type your message here..."}
-                    className="w-full p-4 border-2 border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
-                    rows={3}
-                    disabled={loading}
+              {/* Input - Cleaner */}
+              <div className="p-4 border-t border-gray-200 bg-white">
+                <div className="flex gap-2">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf"
+                    onChange={handleFileSelect}
+                    className="hidden"
                   />
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={loading}
+                    className="p-3 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                    title="Upload Resume (PDF)"
+                  >
+                    <Paperclip size={20} className="text-gray-600" />
+                  </button>
+                  <div className="flex-1 relative">
+                    {selectedFile && (
+                      <div className="absolute -top-9 left-0 right-0 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 flex items-center justify-between">
+                        <span className="text-xs text-blue-800 truncate flex-1">
+                          📄 {selectedFile.name}
+                        </span>
+                        <button
+                          onClick={removeSelectedFile}
+                          className="ml-2 text-blue-600 hover:text-blue-800"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                    <textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault()
+                          sendMessage()
+                        }
+                      }}
+                      placeholder={selectedFile ? "Add a message..." : "Type your message..."}
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
+                      rows={2}
+                      disabled={loading}
+                    />
+                  </div>
+                  <button
+                    onClick={sendMessage}
+                    disabled={loading || (!input.trim() && !selectedFile)}
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm hover:shadow transition-all"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+                  </button>
                 </div>
-                <button
-                  onClick={sendMessage}
-                  disabled={loading || (!input.trim() && !selectedFile)}
-                  className="px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-lg hover:shadow-xl transition-all"
-                >
-                  {loading ? <Loader2 className="animate-spin" size={24} /> : <Send size={24} />}
-                </button>
               </div>
             </div>
           </div>

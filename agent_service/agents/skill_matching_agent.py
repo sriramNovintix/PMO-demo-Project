@@ -7,9 +7,11 @@ from typing import Dict, Any, List
 from langchain_core.prompts import ChatPromptTemplate
 from config import get_llm, invoke_with_prompt
 from agents.base_agent import BaseAgent
+from agentops.sdk.decorators import agent, operation
 import json
 
 
+@agent(name="skill_matching_agent")
 class SkillMatchingAgent(BaseAgent):
     """
     Skill Matching Agent
@@ -55,6 +57,7 @@ Employees:
 Match employees to tasks based on skills.""")
         ])
     
+    @operation(name="match_skills")
     def match_skills(self, tasks: List[Dict[str, Any]], employees: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Match employee skills to tasks

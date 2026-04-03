@@ -127,6 +127,7 @@ export default function Sidebar() {
   const navLinks = [
     { href: '/', label: 'Dashboard', icon: Target },
     { href: '/tasks', label: 'Tasks', icon: Users },
+    { href: '/employees', label: 'Employees', icon: Users },
     { href: '/candidates', label: 'Candidates', icon: UserPlus },
   ]
 

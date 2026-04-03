@@ -6,9 +6,11 @@ from langchain_core.tools import tool
 from database import db
 import json
 from typing import Optional
+from agentops.sdk.decorators import tool as agentops_tool
 
 
 @tool
+@agentops_tool(name="mongodb_tool", cost=0.0)
 def mongodb_tool(operation: str, collection: str, data: dict = None, query: dict = None) -> str:
     """
     Universal MongoDB tool for all database operations.

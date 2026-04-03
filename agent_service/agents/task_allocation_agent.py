@@ -7,9 +7,11 @@ from typing import Dict, Any, List
 from langchain_core.prompts import ChatPromptTemplate
 from config import get_llm, invoke_with_prompt
 from agents.base_agent import BaseAgent
+from agentops.sdk.decorators import agent, operation
 import json
 
 
+@agent(name="task_allocation_agent")
 class TaskAllocationAgent(BaseAgent):
     """
     Task Allocation Agent
@@ -59,6 +61,7 @@ Employee Capacity: 40 hours/week per employee
 Create optimal allocation plan.""")
         ])
     
+    @operation(name="allocate_tasks")
     def allocate_tasks(self, skill_matches: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Create task allocation plan

@@ -6,9 +6,11 @@ from langchain_core.tools import tool
 import requests
 from config import Config
 import json
+from agentops.sdk.decorators import tool as agentops_tool
 
 
 @tool
+@agentops_tool(name="slack_tool", cost=0.0)
 def slack_tool(action: str, channel: str = "demo-projects", message: str = None, **kwargs) -> str:
     """
     Universal Slack tool for all Slack operations.

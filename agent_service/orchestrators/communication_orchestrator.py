@@ -11,8 +11,10 @@ from config import get_llm
 from tools.mongodb_tool import mongodb_tool
 from tools.slack_tool import slack_tool
 from agents.base_agent import BaseAgent
+from agentops.sdk.decorators import agent, workflow
 
 
+@agent(name="communication_orchestrator")
 class CommunicationOrchestrator(BaseAgent):
     """
     Communication Orchestrator
@@ -52,6 +54,7 @@ When user wants to send custom message:
 Always use tools to get data and send messages."""
         )
     
+    @workflow(name="communication_workflow")
     def process(self, messages: List[BaseMessage], session_id: str) -> Dict[str, Any]:
         """
         Process communication request

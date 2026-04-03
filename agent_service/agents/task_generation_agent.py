@@ -7,9 +7,11 @@ from typing import Dict, Any, List
 from langchain_core.prompts import ChatPromptTemplate
 from config import get_llm, invoke_with_prompt
 from agents.base_agent import BaseAgent
+from agentops.sdk.decorators import agent, operation
 import json
 
 
+@agent(name="task_generation_agent")
 class TaskGenerationAgent(BaseAgent):
     """
     Task Generation Agent
@@ -54,6 +56,7 @@ Weekly Goal: {weekly_goal}
 Generate actionable tasks.""")
         ])
     
+    @operation(name="generate_tasks")
     def generate_tasks(self, project_name: str, weekly_goal: str) -> Dict[str, Any]:
         """
         Generate tasks from weekly goal

@@ -7,9 +7,11 @@ from typing import Dict, Any
 from langchain_core.prompts import ChatPromptTemplate
 from config import get_llm, invoke_with_prompt
 from agents.base_agent import BaseAgent
+from agentops.sdk.decorators import agent, operation
 import json
 
 
+@agent(name="goal_understanding_agent")
 class GoalUnderstandingAgent(BaseAgent):
     """
     Goal Understanding Agent
@@ -49,6 +51,7 @@ Current Context:
 Extract and clarify the goal.""")
         ])
     
+    @operation(name="understand_goal")
     def understand_goal(self, user_message: str, existing_context: Dict[str, Any] = None) -> Dict[str, Any]:
         """
         Extract and understand project goal

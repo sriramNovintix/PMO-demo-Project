@@ -142,183 +142,204 @@ export default function TasksPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-8 py-8">
-        <div className="flex justify-center items-center h-64">
-          <Loader2 className="animate-spin" size={48} />
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+        <div className="container mx-auto px-6 py-8">
+          <div className="flex justify-center items-center h-[600px]">
+            <div className="text-center">
+              <Loader2 className="animate-spin text-blue-600 mx-auto mb-4" size={48} />
+              <p className="text-gray-600">Loading tasks...</p>
+            </div>
+          </div>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-8 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Task Board</h1>
-        <p className="text-gray-600">Drag and drop tasks to update their status</p>
-      </div>
-
-      {/* Filter Section */}
-      <div className="bg-white rounded-lg shadow-md p-4 mb-6">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Filter size={20} className="text-gray-600" />
-            <span className="font-medium text-gray-700">Filter by:</span>
-          </div>
-          
-          <select
-            value={filterEmployee}
-            onChange={(e) => setFilterEmployee(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="all">All Tasks</option>
-            <option value="unassigned">Unassigned Tasks</option>
-            {employees.map(emp => (
-              <option key={emp.name} value={emp.name}>{emp.name}</option>
-            ))}
-          </select>
-
-          {filterEmployee !== 'all' && (
-            <button
-              onClick={() => setFilterEmployee('all')}
-              className="flex items-center gap-1 px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
-            >
-              <X size={16} />
-              Clear Filter
-            </button>
-          )}
-
-          <div className="ml-auto text-sm text-gray-600">
-            Showing {getFilteredTasks().length} of {tasks.length} tasks
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
+      <div className="container mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-md">
+              <ListTodo className="text-white" size={24} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Task Board</h1>
+              <p className="text-gray-600">Drag and drop tasks to update their status</p>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {columns.map(column => {
-          const columnTasks = getTasksByStatus(column.id)
-          const Icon = column.icon
-
-          return (
-            <div
-              key={column.id}
-              className={`rounded-lg border-2 ${column.color} min-h-[600px]`}
-              onDragOver={handleDragOver}
-              onDrop={() => handleDrop(column.id)}
+        {/* Filter Section */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2">
+              <Filter size={20} className="text-gray-600" />
+              <span className="font-medium text-gray-700">Filter by:</span>
+            </div>
+            
+            <select
+              value={filterEmployee}
+              onChange={(e) => setFilterEmployee(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
             >
-              {/* Column Header */}
-              <div className={`${column.headerColor} p-4 rounded-t-lg flex items-center justify-between`}>
-                <div className="flex items-center gap-2">
-                  <Icon size={20} />
-                  <h2 className="font-bold text-lg">{column.title}</h2>
+              <option value="all">All Tasks</option>
+              <option value="unassigned">Unassigned Tasks</option>
+              {employees.map(emp => (
+                <option key={emp.name} value={emp.name}>{emp.name}</option>
+              ))}
+            </select>
+
+            {filterEmployee !== 'all' && (
+              <button
+                onClick={() => setFilterEmployee('all')}
+                className="flex items-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <X size={16} />
+                Clear
+              </button>
+            )}
+
+            <div className="ml-auto text-sm text-gray-600 font-medium">
+              {getFilteredTasks().length} of {tasks.length} tasks
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {columns.map(column => {
+            const columnTasks = getTasksByStatus(column.id)
+            const Icon = column.icon
+
+            return (
+              <div
+                key={column.id}
+                className="rounded-xl border-2 border-gray-200 bg-white shadow-sm min-h-[600px] flex flex-col"
+                onDragOver={handleDragOver}
+                onDrop={() => handleDrop(column.id)}
+              >
+                {/* Column Header */}
+                <div className={`${column.headerColor} p-4 rounded-t-xl flex items-center justify-between`}>
+                  <div className="flex items-center gap-2">
+                    <Icon size={20} />
+                    <h2 className="font-bold text-lg">{column.title}</h2>
+                  </div>
+                  <span className="bg-white bg-opacity-30 px-3 py-1 rounded-full text-sm font-semibold">
+                    {columnTasks.length}
+                  </span>
                 </div>
-                <span className="bg-white bg-opacity-30 px-3 py-1 rounded-full text-sm font-semibold">
-                  {columnTasks.length}
-                </span>
-              </div>
 
-              {/* Tasks */}
-              <div className="p-4 space-y-3">
-                {columnTasks.length === 0 ? (
-                  <p className="text-gray-500 text-center py-8 text-sm">
-                    No tasks yet
-                  </p>
-                ) : (
-                  columnTasks.map(task => (
-                    <div
-                      key={task.task_id}
-                      draggable
-                      onDragStart={() => handleDragStart(task)}
-                      className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-move border border-gray-200"
-                    >
-                      <h3 className="font-semibold text-gray-800 mb-2">
-                        {task.title}
-                      </h3>
-                      
-                      {task.description && (
-                        <p className="text-sm text-gray-600 mb-3">
-                          {task.description}
-                        </p>
-                      )}
+                {/* Tasks */}
+                <div className="p-4 space-y-3 flex-1">
+                  {columnTasks.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-400 text-sm">No tasks</p>
+                    </div>
+                  ) : (
+                    columnTasks.map(task => (
+                      <div
+                        key={task.task_id}
+                        draggable
+                        onDragStart={() => handleDragStart(task)}
+                        className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-all cursor-move border border-gray-200 hover:border-blue-300"
+                      >
+                        <h3 className="font-semibold text-gray-900 mb-2 leading-tight">
+                          {task.title}
+                        </h3>
+                        
+                        {task.description && (
+                          <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                            {task.description}
+                          </p>
+                        )}
 
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <div>
-                            {task.assigned_to ? (
-                              <>
-                                <p className="font-medium text-gray-700">
-                                  👤 {task.assigned_to}
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <div>
+                              {task.assigned_to ? (
+                                <div className="space-y-1">
+                                  <p className="font-medium text-gray-700 flex items-center gap-1">
+                                    <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 text-xs font-bold">
+                                      {task.assigned_to[0].toUpperCase()}
+                                    </span>
+                                    {task.assigned_to}
+                                  </p>
+                                  <p className="text-gray-500 flex items-center gap-1">
+                                    <Clock size={12} />
+                                    {task.estimated_hours}h
+                                  </p>
+                                </div>
+                              ) : (
+                                <p className="font-medium text-orange-600 flex items-center gap-1">
+                                  <span className="w-2 h-2 bg-orange-500 rounded-full"></span>
+                                  Unassigned
                                 </p>
-                                <p className="text-gray-500">
-                                  ⏱️ {task.estimated_hours}h
-                                </p>
-                              </>
-                            ) : (
-                              <p className="font-medium text-orange-600">
-                                ⚠️ Unassigned
-                              </p>
+                              )}
+                            </div>
+                            
+                            {task.completed_at && (
+                              <div className="text-green-600 font-medium flex items-center gap-1">
+                                <CheckCircle size={14} />
+                                Done
+                              </div>
                             )}
                           </div>
-                          
-                          {task.completed_at && (
-                            <div className="text-green-600 font-medium">
-                              ✓ Done
+
+                          {/* Manual Assignment Button */}
+                          {assigningTask === task.task_id ? (
+                            <div className="flex gap-2 mt-3 pt-3 border-t border-gray-200">
+                              <select
+                                value={selectedEmployee}
+                                onChange={(e) => setSelectedEmployee(e.target.value)}
+                                className="flex-1 px-2 py-1.5 text-xs border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                              >
+                                <option value="">Select Employee</option>
+                                {employees.map(emp => (
+                                  <option key={emp.name} value={emp.name}>
+                                    {emp.name}
+                                  </option>
+                                ))}
+                              </select>
+                              <button
+                                onClick={() => {
+                                  if (selectedEmployee) {
+                                    assignTaskToEmployee(task.task_id, selectedEmployee)
+                                  }
+                                }}
+                                disabled={!selectedEmployee}
+                                className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                              >
+                                ✓
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setAssigningTask(null)
+                                  setSelectedEmployee('')
+                                }}
+                                className="px-3 py-1.5 text-xs bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                              >
+                                ✕
+                              </button>
                             </div>
+                          ) : (
+                            <button
+                              onClick={() => setAssigningTask(task.task_id)}
+                              className="w-full mt-3 pt-3 border-t border-gray-200 flex items-center justify-center gap-1.5 px-3 py-2 text-xs bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 border border-blue-200 transition-colors font-medium"
+                            >
+                              <UserPlus size={14} />
+                              {task.assigned_to ? 'Reassign' : 'Assign'}
+                            </button>
                           )}
                         </div>
-
-                        {/* Manual Assignment Button */}
-                        {assigningTask === task.task_id ? (
-                          <div className="flex gap-2 mt-2">
-                            <select
-                              value={selectedEmployee}
-                              onChange={(e) => setSelectedEmployee(e.target.value)}
-                              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="">Select Employee</option>
-                              {employees.map(emp => (
-                                <option key={emp.name} value={emp.name}>
-                                  {emp.name}
-                                </option>
-                              ))}
-                            </select>
-                            <button
-                              onClick={() => {
-                                if (selectedEmployee) {
-                                  assignTaskToEmployee(task.task_id, selectedEmployee)
-                                }
-                              }}
-                              disabled={!selectedEmployee}
-                              className="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-300"
-                            >
-                              Assign
-                            </button>
-                            <button
-                              onClick={() => {
-                                setAssigningTask(null)
-                                setSelectedEmployee('')
-                              }}
-                              className="px-2 py-1 text-xs bg-gray-300 text-gray-700 rounded hover:bg-gray-400"
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setAssigningTask(task.task_id)}
-                            className="w-full mt-2 flex items-center justify-center gap-1 px-3 py-1 text-xs bg-blue-50 text-blue-600 rounded hover:bg-blue-100 border border-blue-200"
-                          >
-                            <UserPlus size={14} />
-                            {task.assigned_to ? 'Reassign' : 'Assign to Employee'}
-                          </button>
-                        )}
                       </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
-            </div>
-          )
-        })}
+            )
+          })}
+        </div>
       </div>
     </div>
   )

@@ -11,6 +11,7 @@ from orchestrators.project_orchestrator import project_orchestrator
 from orchestrators.recruitment_orchestrator import recruitment_orchestrator
 from orchestrators.communication_orchestrator import communication_orchestrator
 from memory.session_memory import memory
+from agentops.sdk.decorators import agent, workflow
 import datetime
 
 
@@ -21,6 +22,7 @@ class AgentState(TypedDict):
     next: str
 
 
+@agent(name="central_orchestrator")
 class CentralOrchestrator:
     """
     Central Orchestrator
@@ -113,6 +115,7 @@ Respond with ONLY the orchestrator name in lowercase ('project', 'recruitment', 
         
         return workflow.compile()
     
+    @workflow(name="process_user_message")
     def process_message(self, session_id: str, user_message: str) -> Dict[str, Any]:
         """
         Process user message through orchestrators

@@ -11,8 +11,10 @@ from config import get_llm
 from tools.mongodb_tool import mongodb_tool
 from tools.slack_tool import slack_tool
 from agents.base_agent import BaseAgent
+from agentops.sdk.decorators import agent, workflow
 
 
+@agent(name="recruitment_orchestrator")
 class RecruitmentOrchestrator(BaseAgent):
     """
     Recruitment Orchestrator
@@ -49,6 +51,7 @@ When user wants to select a candidate:
 Always use tools to interact with database."""
         )
     
+    @workflow(name="recruitment_workflow")
     def process(self, messages: List[BaseMessage], session_id: str) -> Dict[str, Any]:
         """
         Process recruitment request

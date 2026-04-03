@@ -6,8 +6,10 @@ Standalone runnable agent with state management
 from typing import Dict, Any
 from database import db
 from agents.base_agent import BaseAgent
+from agentops.sdk.decorators import agent, operation
 
 
+@agent(name="status_agent")
 class StatusAgent(BaseAgent):
     """
     Status Agent
@@ -17,6 +19,7 @@ class StatusAgent(BaseAgent):
     def __init__(self):
         super().__init__("status_agent")
     
+    @operation(name="get_status_update")
     def get_status_update(self) -> Dict[str, Any]:
         """
         Get comprehensive status update for all employees and tasks
@@ -59,6 +62,7 @@ class StatusAgent(BaseAgent):
                 "status_message": f"Error retrieving status: {str(e)}"
             }
     
+    @operation(name="get_detailed_status")
     def get_detailed_status(self, employee_name: str = None) -> Dict[str, Any]:
         """
         Get detailed status with task lists

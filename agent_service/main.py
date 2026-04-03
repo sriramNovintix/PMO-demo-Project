@@ -6,6 +6,7 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any, List
+import datetime
 # Orchestrator imported in chat endpoint
 from memory.session_memory import memory
 from database import db
@@ -15,8 +16,14 @@ import PyPDF2
 import io
 import agentops
 import os
+from agentops.sdk.decorators import session, operation
 
-agentops.init(api_key=os.getenv("AGENTOPS_API_KEY", ""), default_tags=["PMO-demo-Project"])
+# Initialize AgentOps with proper configuration
+agentops.init(
+    api_key=os.getenv("AGENTOPS_API_KEY", ""),
+    default_tags=["PMO-demo-Project", "production", "task-orchestrator"],
+    auto_start_session=False  # We'll start sessions per request
+)
 
 app = FastAPI(
     title="Task Orchestrator - Agent Service",
@@ -67,6 +74,7 @@ class ApprovalRequest(BaseModel):
 
 # Chat Endpoint
 @app.post("/chat")
+@session(name="chat_interaction")
 async def chat(request: ChatRequest):
     """
     Main chat endpoint - intelligently routes to appropriate agents
@@ -88,20 +96,35 @@ async def chat(request: ChatRequest):
         print(f"   Message: {request.message}")
         print(f"{'='*60}\n")
         
-        # Use central orchestrator
-        from orchestrators.central_orchestrator import central_orchestrator
-        result = central_orchestrator.process_message(
-            session_id=request.session_id,
-            user_message=request.message
+        # Start AgentOps trace for this request
+        trace = agentops.start_trace(
+            trace_name=f"chat_{request.session_id}",
+            tags=["chat", "user-request", request.session_id]
         )
         
-        print(f"\n{'='*60}")
-        print(f"✅ RESPONSE READY")
-        print(f"   Success: {result.get('success', False)}")
-        print(f"   Intent: {result.get('intent', 'N/A')}")
-        print(f"{'='*60}\n")
+        try:
+            # Use central orchestrator
+            from orchestrators.central_orchestrator import central_orchestrator
+            result = central_orchestrator.process_message(
+                session_id=request.session_id,
+                user_message=request.message
+            )
+            
+            print(f"\n{'='*60}")
+            print(f"✅ RESPONSE READY")
+            print(f"   Success: {result.get('success', False)}")
+            print(f"   Intent: {result.get('intent', 'N/A')}")
+            print(f"{'='*60}\n")
+            
+            # End trace with success
+            agentops.end_trace(trace, end_state=agentops.TraceState.SUCCESS)
+            
+            return result
         
-        return result
+        except Exception as e:
+            # End trace with error
+            agentops.end_trace(trace, end_state=agentops.TraceState.ERROR)
+            raise
     
     except Exception as e:
         import traceback
@@ -537,15 +560,22 @@ async def get_tasks(session_id: str = None, status: str = None):
 
 
 @app.post("/tasks/{task_id}/status")
-async def update_task_status(task_id: str, status: str):
+async def update_task_status(task_id: str, status: str = None):
     """
     Update task status
     
     Args:
         task_id: Task ID
-        status: New status (todo, in_progress, completed)
+        status: New status (todo, in_progress, completed) - can be query param or body
     """
     try:
+        # Status can come from query parameter
+        if not status:
+            raise HTTPException(
+                status_code=400,
+                detail="Status parameter is required"
+            )
+        
         if status not in ["todo", "in_progress", "completed"]:
             raise HTTPException(
                 status_code=400,
@@ -570,12 +600,15 @@ async def update_task_status(task_id: str, status: str):
 *New Status:* {status.replace('_', ' ').title()}
 *Updated:* {task['updated_at']}"""
             
-            from tools.slack_tool import slack_tool
-            slack_tool.invoke(
-                action="send_message",
-                channel="demo-projects",
-                message=message
-            )
+            try:
+                from tools.slack_tool import slack_tool
+                slack_tool.invoke(
+                    action="send_message",
+                    channel="demo-projects",
+                    message=message
+                )
+            except Exception as slack_error:
+                print(f"Warning: Could not send Slack notification: {slack_error}")
             
             return result
         else:
@@ -587,6 +620,8 @@ async def update_task_status(task_id: str, status: str):
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print(f"Error in update_task_status: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail={"error": str(e)}
@@ -814,9 +849,13 @@ async def create_session(request: Dict[str, Any]):
         memory.create_session(session_id)
         
         # Initialize with empty state
-        from state import create_initial_state
-        initial_state = create_initial_state(session_id, "")
-        initial_state["project_name"] = project_name
+        initial_state = {
+            "session_id": session_id,
+            "project_name": project_name,
+            "conversation_history": [],
+            "agent_messages": [],
+            "created_at": datetime.datetime.now().isoformat()
+        }
         memory.store_state(session_id, initial_state)
         
         return {
@@ -826,6 +865,8 @@ async def create_session(request: Dict[str, Any]):
         }
     
     except Exception as e:
+        import traceback
+        print(f"Error in create_session: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail={"error": str(e)}
@@ -841,8 +882,12 @@ async def get_session(session_id: str):
         if not state:
             # Create new session if it doesn't exist
             memory.create_session(session_id)
-            from state import create_initial_state
-            state = create_initial_state(session_id, "")
+            state = {
+                "session_id": session_id,
+                "conversation_history": [],
+                "agent_messages": [],
+                "created_at": datetime.datetime.now().isoformat()
+            }
             memory.store_state(session_id, state)
         
         return {
@@ -853,6 +898,8 @@ async def get_session(session_id: str):
     except HTTPException:
         raise
     except Exception as e:
+        import traceback
+        print(f"Error in get_session: {traceback.format_exc()}")
         raise HTTPException(
             status_code=500,
             detail={"error": str(e)}
