@@ -631,11 +631,11 @@ async def update_task_status(task_id: str, status: str = None):
 @app.post("/tasks/{task_id}/assign")
 async def assign_task_to_employee(task_id: str, employee_name: str):
     """
-    Manually assign task to employee with skill validation
+    Manually assign task to employee by name (no email required)
     
     Args:
         task_id: Task ID
-        employee_name: Employee name to assign to
+        employee_name: Employee name to assign to (case-insensitive)
     """
     try:
         from datetime import datetime
@@ -647,19 +647,28 @@ async def assign_task_to_employee(task_id: str, employee_name: str):
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
         
-        # Get employee
+        # Get employee by name (case-insensitive)
         employees = db.get_all_employees()
-        employee = next((e for e in employees if e['name'] == employee_name), None)
+        employee = None
+        for emp in employees:
+            if emp['name'].lower().strip() == employee_name.lower().strip():
+                employee = emp
+                break
         
         if not employee:
-            raise HTTPException(status_code=404, detail="Employee not found")
+            # Return list of available employees
+            available_names = [e['name'] for e in employees]
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Employee '{employee_name}' not found. Available: {', '.join(available_names)}"
+            )
         
         # Update task assignment
         result = db.tasks.update_one(
             {"task_id": task_id},
             {
                 "$set": {
-                    "assigned_to": employee_name,
+                    "assigned_to": employee['name'],
                     "assigned_to_email": employee.get('email'),
                     "updated_at": datetime.now().isoformat()
                 }
@@ -669,11 +678,10 @@ async def assign_task_to_employee(task_id: str, employee_name: str):
         if result.modified_count > 0:
             # Send Slack notification
             from tools.slack_tool import slack_tool
-            message = f"""📌 *Task Manually Assigned*
+            message = f"""📌 *Task Assigned*
 
 *Task:* {task['title']}
-*Assigned to:* {employee_name}
-*Email:* {employee.get('email')}
+*Assigned to:* {employee['name']}
 *Estimated Hours:* {task['estimated_hours']}h
 
 Task has been assigned successfully!"""
@@ -689,7 +697,7 @@ Task has been assigned successfully!"""
             
             return {
                 "success": True,
-                "message": f"Task assigned to {employee_name}",
+                "message": f"Task assigned to {employee['name']}",
                 "assigned": True
             }
         else:
