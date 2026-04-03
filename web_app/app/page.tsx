@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import { Send, Loader2, CheckCircle, XCircle, Sparkles, Target, Users, UserPlus, Paperclip, X } from 'lucide-react'
 import axios from 'axios'
 import { useSearchParams } from 'next/navigation'
@@ -14,7 +14,7 @@ interface Message {
   data?: any
 }
 
-export default function Home() {
+function HomeContent() {
   const searchParams = useSearchParams()
   const urlSessionId = searchParams.get('session')
   const [messages, setMessages] = useState<Message[]>([])
@@ -543,5 +543,17 @@ export default function Home() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-blue-600" size={48} />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }
