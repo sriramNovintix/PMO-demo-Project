@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Loader2, CheckCircle, Clock, ListTodo, Filter, X, UserPlus } from 'lucide-react'
+import { Loader2, CheckCircle, Clock, ListTodo, Filter, X, UserPlus, Trash2 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -84,6 +84,20 @@ export default function TasksPage() {
     } catch (error) {
       console.error('Error updating task:', error)
       alert('Failed to update task status')
+    }
+  }
+
+  const deleteTask = async (taskId: string, taskTitle: string) => {
+    if (!confirm(`Are you sure you want to delete "${taskTitle}"?`)) {
+      return
+    }
+    
+    try {
+      await axios.delete(`${API_URL}/tasks/${taskId}`)
+      loadTasks() // Reload tasks
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      alert('Failed to delete task')
     }
   }
 
@@ -244,9 +258,21 @@ export default function TasksPage() {
                         onDragStart={() => handleDragStart(task)}
                         className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-all cursor-move border border-gray-200 hover:border-blue-300"
                       >
-                        <h3 className="font-semibold text-gray-900 mb-2 leading-tight">
-                          {task.title}
-                        </h3>
+                        <div className="flex items-start justify-between mb-2">
+                          <h3 className="font-semibold text-gray-900 leading-tight flex-1">
+                            {task.title}
+                          </h3>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              deleteTask(task.task_id, task.title)
+                            }}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 p-1 rounded transition-colors"
+                            title="Delete task"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                         
                         {task.description && (
                           <p className="text-sm text-gray-600 mb-3 line-clamp-2">

@@ -97,6 +97,17 @@ def mongodb_tool(operation: str, collection: str, data: dict = None, query: dict
             elif operation == "insert":
                 if not data:
                     return json.dumps({"success": False, "error": "Data required for insert"})
+                
+                # Ensure assigned_to is employee NAME, not email
+                if "assigned_to" in data and "@" in str(data.get("assigned_to", "")):
+                    # If email provided, find employee name
+                    employees = db.get_all_employees()
+                    for emp in employees:
+                        if emp.get("email") == data["assigned_to"]:
+                            data["assigned_to"] = emp["name"]
+                            data["assigned_to_email"] = emp.get("email")
+                            break
+                
                 result = db.create_task(data)
                 return json.dumps(result, indent=2)
             
@@ -105,6 +116,26 @@ def mongodb_tool(operation: str, collection: str, data: dict = None, query: dict
                     return json.dumps({"success": False, "error": "task_id required for update"})
                 if not data:
                     return json.dumps({"success": False, "error": "Data required for update"})
+                
+                # Ensure assigned_to is employee NAME, not email
+                if "assigned_to" in data:
+                    assigned_value = data["assigned_to"]
+                    if "@" in str(assigned_value):
+                        # If email provided, find employee name
+                        employees = db.get_all_employees()
+                        for emp in employees:
+                            if emp.get("email") == assigned_value:
+                                data["assigned_to"] = emp["name"]
+                                data["assigned_to_email"] = emp.get("email")
+                                break
+                    else:
+                        # If name provided, find email
+                        employees = db.get_all_employees()
+                        for emp in employees:
+                            if emp["name"].lower().strip() == str(assigned_value).lower().strip():
+                                data["assigned_to"] = emp["name"]
+                                data["assigned_to_email"] = emp.get("email")
+                                break
                 
                 # Update task status if provided
                 if "status" in data:

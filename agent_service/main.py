@@ -714,6 +714,39 @@ Task has been assigned successfully!"""
         )
 
 
+@app.delete("/tasks/{task_id}")
+async def delete_task(task_id: str):
+    """
+    Delete a task
+    
+    Args:
+        task_id: Task ID to delete
+    """
+    try:
+        result = db.tasks.delete_one({"task_id": task_id})
+        
+        if result.deleted_count > 0:
+            return {
+                "success": True,
+                "message": "Task deleted successfully"
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail="Task not found"
+            )
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Error deleting task: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=500,
+            detail={"error": str(e)}
+        )
+
+
 @app.get("/status")
 async def get_employee_status():
     """Get status summary for all employees"""
